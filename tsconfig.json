@@ -1,0 +1,25 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/app/*": ["app/*"],
+      "@/components/*": ["components/*"],
+      "@/constants/*": ["constants/*"],
+      "@/hooks/*": ["hooks/*"],
+      "@/lib/*": ["lib/*"],
+      "@/services/*": ["services/*"],
+      "@/stores/*": ["stores/*"],
+      "@/types/*": ["types/*"],
+      "@/utils/*": ["utils/*"]
+    },
+    "types": ["nativewind/types"]
+  },
+  "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"],
+  "exclude": ["node_modules", "dist", "supabase/functions"]
+}
