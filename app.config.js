@@ -50,7 +50,9 @@ module.exports = ({ config }) => ({
     'expo-camera',
     'expo-location',
     'expo-notifications',
-    'expo-image-picker',
+    ['expo-image-picker', {
+      photosPermission: 'Allow Zapfix to access your photos.'
+    }],
     'expo-av'
   ],
   extra: {

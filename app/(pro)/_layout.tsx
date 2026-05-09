@@ -21,7 +21,7 @@ export default function ProLayout() {
         }}
       />
       <Tabs.Screen
-        name="job"
+        name="job/index"
         options={{
           title: 'Active',
           tabBarIcon: ({ color, size }) => (

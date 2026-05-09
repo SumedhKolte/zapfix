@@ -30,6 +30,23 @@ serve(async (req) => {
     return new Response('Missing storage_url', { status: 400 });
   }
 
+  console.log('Received URL:', storage_url);
+
+  let mediaCheck = await fetch(storage_url, { method: 'HEAD' });
+  if (mediaCheck.status === 405) {
+    mediaCheck = await fetch(storage_url);
+  }
+  if (!mediaCheck.ok) {
+    console.log('Storage URL not accessible', mediaCheck.status, mediaCheck.statusText);
+    return new Response(JSON.stringify({
+      error: 'storage_url not accessible',
+      status: mediaCheck.status
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   // TODO: Call Gemini 1.5 Flash with the image/video and system prompt.
   const diagnosis = {
     fault_name: 'Capacitor Failure',

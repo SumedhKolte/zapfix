@@ -31,7 +31,8 @@ export const BottomSheet = ({ visible, onClose, children, snapPoints }: BottomSh
       backdropComponent={(props) => (
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
       )}
-      backgroundStyle={{ backgroundColor: Colors.white }}
+      backgroundStyle={{ backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+      handleIndicatorStyle={{ backgroundColor: Colors.border, width: 40 }}
     >
       <View style={{ padding: 20 }}>{children}</View>
     </BottomSheetModal>

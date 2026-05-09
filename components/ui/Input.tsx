@@ -10,8 +10,9 @@ type InputProps = TextInputProps & {
   error?: string;
 };
 
-export const Input = ({ label, leftElement, rightElement, error, ...props }: InputProps) => {
+export const Input = ({ label, leftElement, rightElement, error, onFocus, onBlur, ...props }: InputProps) => {
   const [isFocused, setIsFocused] = useState(false);
+  const borderColor = error ? Colors.error : isFocused ? Colors.amber.primary : Colors.border;
 
   return (
     <View style={{ gap: 8 }}>
@@ -21,11 +22,11 @@ export const Input = ({ label, leftElement, rightElement, error, ...props }: Inp
           flexDirection: 'row',
           alignItems: 'center',
           borderWidth: 1.5,
-          borderColor: isFocused ? Colors.amber.primary : Colors.border,
-          borderRadius: 12,
-          height: 52,
+          borderColor,
+          borderRadius: 14,
+          height: 54,
           paddingHorizontal: 16,
-          backgroundColor: Colors.white
+          backgroundColor: Colors.offWhite
         }}
       >
         {leftElement ? <View style={{ marginRight: 8 }}>{leftElement}</View> : null}
@@ -33,8 +34,14 @@ export const Input = ({ label, leftElement, rightElement, error, ...props }: Inp
           {...props}
           style={{ flex: 1, fontSize: 16, color: Colors.darkGray }}
           placeholderTextColor={Colors.midGray}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={(event) => {
+            setIsFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setIsFocused(false);
+            onBlur?.(event);
+          }}
         />
         {rightElement ? <View style={{ marginLeft: 8 }}>{rightElement}</View> : null}
       </View>

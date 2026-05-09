@@ -32,11 +32,19 @@ const getPublicUrl = (bucket: string, path: string) => {
   return data.publicUrl;
 };
 
+const getSignedUrl = async (bucket: string, path: string, expiresInSeconds = 600) => {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+  if (error) {
+    throw error;
+  }
+  return data.signedUrl;
+};
+
 export const uploadJobMedia = async (jobId: string, uri: string, fileName: string) => {
   const optimizedUri = await compressImage(uri);
   const path = `jobs/${jobId}/${fileName}`;
   const storedPath = await uploadBlob('job-media', path, optimizedUri, 'image/jpeg');
-  return getPublicUrl('job-media', storedPath);
+  return getSignedUrl('job-media', storedPath);
 };
 
 export const uploadKycDocument = async (proId: string, uri: string, fileName: string) => {

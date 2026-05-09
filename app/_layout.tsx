@@ -15,6 +15,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { getProDetails } from '@/services/profile';
 import { Colors } from '@/constants/colors';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { AppSplash } from '@/components/ui/AppSplash';
+import { isFullNameMissing } from '@/utils/profile';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,11 +24,12 @@ const RootNavigation = () => {
   const router = useRouter();
   const segments = useSegments();
   const { session, profile, isLoading } = useAuth();
+  const needsName = isFullNameMissing(profile?.full_name);
 
   const proDetailsQuery = useQuery({
     queryKey: ['pro-details', session?.user.id ?? ''],
     queryFn: () => getProDetails(session?.user.id ?? ''),
-    enabled: Boolean(session?.user.id && profile?.role === 'pro')
+    enabled: Boolean(session?.user.id && profile?.role === 'pro' && !needsName)
   });
 
   useEffect(() => {
@@ -42,7 +45,6 @@ const RootNavigation = () => {
       if (!inAuthGroup) {
         router.replace('/(auth)/welcome');
       }
-      SplashScreen.hideAsync();
       return;
     }
 
@@ -50,7 +52,14 @@ const RootNavigation = () => {
       if (!inAuthGroup) {
         router.replace('/(auth)/welcome');
       }
-      SplashScreen.hideAsync();
+      return;
+    }
+
+    if (needsName) {
+      const inNameScreen = inAuthGroup && segments[1] === 'name';
+      if (!inNameScreen) {
+        router.replace('/(auth)/name');
+      }
       return;
     }
 
@@ -58,7 +67,6 @@ const RootNavigation = () => {
       if (!inCustomerGroup) {
         router.replace('/(customer)/home');
       }
-      SplashScreen.hideAsync();
       return;
     }
 
@@ -69,7 +77,6 @@ const RootNavigation = () => {
       } else if (!inProGroup) {
         router.replace('/(pro)/dashboard');
       }
-      SplashScreen.hideAsync();
     }
   }, [
     session,
@@ -77,8 +84,13 @@ const RootNavigation = () => {
     isLoading,
     segments,
     router,
-    proDetailsQuery.data?.onboarding_step
+    proDetailsQuery.data?.onboarding_step,
+    needsName
   ]);
+
+  if (isLoading) {
+    return <AppSplash />;
+  }
 
   return <Stack screenOptions={{ headerShown: false }} />;
 };
@@ -86,6 +98,10 @@ const RootNavigation = () => {
 export default function RootLayout() {
   const netInfo = useNetInfo();
   const isOffline = netInfo.isConnected === false;
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
