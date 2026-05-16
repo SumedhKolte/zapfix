@@ -44,7 +44,7 @@ export const uploadJobMedia = async (jobId: string, uri: string, fileName: strin
   const optimizedUri = await compressImage(uri);
   const path = `jobs/${jobId}/${fileName}`;
   const storedPath = await uploadBlob('job-media', path, optimizedUri, 'image/jpeg');
-  return getSignedUrl('job-media', storedPath);
+  return `job-media/${storedPath}`;
 };
 
 export const uploadKycDocument = async (proId: string, uri: string, fileName: string) => {

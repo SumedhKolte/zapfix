@@ -13,7 +13,7 @@ import {
 export const useProfile = (userId: string) => {
   const queryClient = useQueryClient();
   const profileQuery = useQuery({
-    queryKey: QueryKeys.profile,
+    queryKey: QueryKeys.profile(userId),
     queryFn: () => getProfile(userId),
     enabled: Boolean(userId),
     staleTime: 5 * 60 * 1000
@@ -41,7 +41,7 @@ export const useProfile = (userId: string) => {
     mutationFn: (payload: { id: string; data: Parameters<typeof updateProfile>[1] }) =>
       updateProfile(payload.id, payload.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QueryKeys.profile });
+      queryClient.invalidateQueries({ queryKey: QueryKeys.profile(userId) });
     }
   });
 

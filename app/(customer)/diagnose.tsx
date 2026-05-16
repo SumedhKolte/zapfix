@@ -10,8 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { DiagnosisCard } from '@/components/customer/DiagnosisCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { uploadJobMedia } from '@/services/uploads';
-import { requestDiagnosis } from '@/services/diagnosis';
+import { diagnoseImage } from '@/lib/diagnose';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
 import { useJob } from '@/hooks/useJob';
 
@@ -142,9 +141,7 @@ export default function Diagnose() {
     setStep('processing');
     setError(null);
     try {
-      const tempJobId    = `temp-${Date.now()}`;
-      const storagePath  = await uploadJobMedia(tempJobId, media.uri, 'diagnosis.jpg');
-      const response     = await requestDiagnosis({ storage_url: storagePath, category: category ?? undefined });
+      const response     = await diagnoseImage(media.uri, undefined, category ?? undefined);
       const parsed       = parseDiagnosis(response);
       setDiagnosis(parsed);
       setStep('result');

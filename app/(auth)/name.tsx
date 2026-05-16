@@ -64,7 +64,7 @@ export default function NameCapture() {
     try {
       const updated = await updateProfile(session.user.id, { full_name: trimmed });
       setProfile(updated);
-      queryClient.setQueryData(QueryKeys.profile, updated);
+      queryClient.setQueryData(QueryKeys.profile(updated.id), updated);
 
       if (updated.role === 'pro') {
         try {

@@ -1,7 +1,7 @@
 import { diagnoseMedia } from '@/lib/gemini';
 
 export const requestDiagnosis = async (payload: {
-  storage_url: string;
+  storage_path: string;
   category?: string;
   problem_text?: string;
 }) => {

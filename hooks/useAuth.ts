@@ -35,7 +35,7 @@ export const useAuth = () => {
   }, [setSession]);
 
   const profileQuery = useQuery({
-    queryKey: QueryKeys.profile,
+    queryKey: QueryKeys.profile(session?.user.id ?? ''),
     queryFn: async () => getProfile(session?.user.id ?? ''),
     enabled: Boolean(session?.user?.id),
     staleTime: 5 * 60 * 1000

@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export type DiagnosePayload = {
-  storage_url: string;
+  storage_path: string;
   category?: string;
   problem_text?: string;
 };
