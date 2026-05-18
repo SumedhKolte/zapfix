@@ -27,7 +27,10 @@ module.exports = ({ config }) => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.zapfix.app'
+    bundleIdentifier: 'com.zapfix.app',
+    infoPlist: {
+      NSMicrophoneUsageDescription: 'Allow Zapfix to record your problem description for speech to text.'
+    }
   },
   android: {
     package: 'com.zapfix.app',

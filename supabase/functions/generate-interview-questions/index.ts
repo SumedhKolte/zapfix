@@ -3,15 +3,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.2';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+const groqApiKey = Deno.env.get('GROQ_API_KEY') ?? '';
 
 const authClient = (authHeader: string) =>
   createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } }
   });
 
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -60,39 +60,47 @@ Format:
   ]
 }`;
 
-  const geminiPayload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.5, maxOutputTokens: 512 }
+  const groqPayload = {
+    model: GROQ_MODEL,
+    temperature: 0.5,
+    max_tokens: 512,
+    messages: [
+      { role: 'system', content: 'You are a strict JSON generator. Return only valid JSON.' },
+      { role: 'user', content: prompt }
+    ]
   };
 
-  let geminiRes: Response;
+  let groqRes: Response;
   try {
-    geminiRes = await fetch(GEMINI_URL, {
+    groqRes = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiPayload),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${groqApiKey}`,
+      },
+      body: JSON.stringify(groqPayload),
     });
   } catch (e) {
-    console.error('Gemini fetch error:', e);
-    return errorResponse('Failed to reach Gemini API', 502);
+    console.error('Groq fetch error:', e);
+    return errorResponse('Failed to reach Groq API', 502);
   }
 
-  if (!geminiRes.ok) {
-    const errText = await geminiRes.text();
-    console.error('Gemini error:', errText);
-    return errorResponse('Gemini API error', 502);
+  if (!groqRes.ok) {
+    const errText = await groqRes.text();
+    console.error('Groq error:', errText);
+    return errorResponse('Groq API error', 502);
   }
 
-  const geminiData = await geminiRes.json();
-  const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const groqData = await groqRes.json();
+  const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
 
   let result: { questions: string[] };
   try {
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     result = JSON.parse(cleaned);
   } catch {
-    console.error('Gemini non-JSON response:', rawText);
-    // Fallback questions if Gemini returns malformed JSON
+    console.error('Groq non-JSON response:', rawText);
+    // Fallback questions if Groq returns malformed JSON
     result = {
       questions: [
         `A customer says their ${skills[0]} is not working. Walk me through your first 3 diagnosis steps.`,

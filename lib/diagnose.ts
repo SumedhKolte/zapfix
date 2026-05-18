@@ -16,24 +16,33 @@ export type DiagnosisResult = {
 };
 
 export const diagnoseImage = async (
-  imageUri: string,
+  imageUri: string | null,
   jobId?: string,
-  category?: string
+  category?: string,
+  problemDescription?: string
 ): Promise<DiagnosisResult> => {
-  const base64 = await FileSystem.readAsStringAsync(imageUri, {
-    encoding: FileSystem.EncodingType.Base64
-  });
+  const trimmedDescription = problemDescription?.trim();
+  let base64: string | undefined;
+  let mimeType: string | undefined;
 
-  const ext = imageUri.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const mimeMap: Record<string, string> = {
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    webp: 'image/webp',
-    heic: 'image/jpeg',
-    heif: 'image/jpeg'
-  };
-  const mimeType = mimeMap[ext] ?? 'image/jpeg';
+  if (imageUri) {
+    base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    const ext = imageUri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const mimeMap: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp',
+      heic: 'image/jpeg',
+      heif: 'image/jpeg',
+      mp4: 'video/mp4',
+      mov: 'video/quicktime'
+    };
+    mimeType = mimeMap[ext] ?? 'image/jpeg';
+  }
 
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session) {
@@ -52,7 +61,8 @@ export const diagnoseImage = async (
         base64,
         mime_type: mimeType,
         job_id: jobId,
-        category
+        category,
+        problem_description: trimmedDescription
       })
     }
   );

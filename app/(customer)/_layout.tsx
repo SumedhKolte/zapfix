@@ -198,12 +198,12 @@ export default function CustomerLayout() {
       />
 
       <Tabs.Screen
-        name="health"
+        name="rewards"
         options={{
-          title: 'Health',
+          title: 'Rewards',
           tabBarIcon: ({ focused }) => (
             <TabBarIcon
-              name={focused ? 'heart' : 'heart-outline'}
+              name={focused ? 'gift' : 'gift-outline'}
               focused={focused}
             />
           ),
@@ -238,6 +238,30 @@ export default function CustomerLayout() {
       />
       <Tabs.Screen
         name="job/complete"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="addresses"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="login-security"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="appearance"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="language"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="legal"
         options={{ href: null }}
       />
     </Tabs>

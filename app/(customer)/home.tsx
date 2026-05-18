@@ -304,10 +304,10 @@ export default function CustomerHome() {
             </ScrollView>
           </AnimatedCard>
 
-          {/* Home Health — AI blue */}
+          {/* Zap Rewards Banner */}
           <AnimatedCard delay={250}>
             <Pressable
-              onPress={() => router.push('/(customer)/health')}
+              onPress={() => router.push('/(customer)/rewards')}
               style={{
                 backgroundColor: Theme.navy,
                 borderRadius: 20,
@@ -318,32 +318,34 @@ export default function CustomerHome() {
               <View style={{
                 position: 'absolute', right: -24, top: -24,
                 width: 130, height: 130, borderRadius: 65,
-                backgroundColor: 'rgba(27,111,232,0.15)',
+                backgroundColor: 'rgba(245,184,0,0.12)',
               }} />
               <View style={{
                 position: 'absolute', right: 30, bottom: -30,
                 width: 90, height: 90, borderRadius: 45,
-                backgroundColor: 'rgba(245,184,0,0.08)',
+                backgroundColor: 'rgba(27,111,232,0.10)',
               }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <Ionicons name="hardware-chip" size={13} color={Theme.blue} />
-                    <Text style={{ color: Theme.blue, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
-                      AI HEALTH SCORE
+                    <Ionicons name="gift" size={13} color={Theme.amber} />
+                    <Text style={{ color: Theme.amber, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>
+                      ZAP REWARDS
                     </Text>
                   </View>
-                  <Text style={{ color: Theme.white, fontSize: 38, fontWeight: '800', marginTop: 2 }}>82%</Text>
+                  <Text style={{ color: Theme.white, fontSize: 22, fontWeight: '800', marginTop: 2 }}>
+                    Earn &amp; Save
+                  </Text>
                 </View>
                 <View style={{
                   backgroundColor: Theme.amber,
                   borderRadius: 12, padding: 9,
                 }}>
-                  <Ionicons name="heart" size={20} color={Theme.navy} />
+                  <Ionicons name="flash" size={20} color={Theme.navy} />
                 </View>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.55)', marginTop: 8, fontSize: 13 }}>
-                4 appliances · Tap to view full report
+                Points · Achievements · Exclusive offers
               </Text>
             </Pressable>
           </AnimatedCard>

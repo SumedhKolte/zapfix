@@ -23,7 +23,7 @@ serve(async (req) => {
   const body = await req.json();
   const { expected_tools } = body as { expected_tools?: string[] };
 
-  // TODO: Call Gemini Vision for toolkit verification.
+  // TODO: Call Groq vision model for toolkit verification.
   const verified_tools = expected_tools?.slice(0, 2) ?? [];
   const missing_tools = expected_tools?.slice(2) ?? [];
 

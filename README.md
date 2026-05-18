@@ -2,7 +2,7 @@
 
 **Diagnosed First. Fixed Right.**
 
-Zapfix is an AI-powered home appliance repair platform connecting customers with verified professionals. Built with React Native (Expo), Supabase, and Gemini AI.
+Zapfix is an AI-powered home appliance repair platform connecting customers with verified professionals. Built with React Native (Expo), Supabase, and Groq (Llama 4 Scout).
 
 ## Features
 
@@ -17,7 +17,7 @@ Zapfix is an AI-powered home appliance repair platform connecting customers with
 
 - **Frontend**: React Native + Expo
 - **Backend**: Supabase (PostgreSQL + PostGIS + pgvector)
-- **AI**: Google Gemini 1.5 Flash
+- **AI**: Groq (Llama 4 Scout)
 - **Payments**: Razorpay
 - **Maps**: Google Maps API
 - **State Management**: Zustand
@@ -59,7 +59,7 @@ Zapfix is an AI-powered home appliance repair platform connecting customers with
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
    - `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` - Google Maps API key
    - `EXPO_PUBLIC_RAZORPAY_KEY_ID` - Razorpay key ID
-   - `GEMINI_API_KEY` - Google Gemini API key
+   - `GROQ_API_KEY` - Groq API key
 
 4. **Set up Supabase**
 

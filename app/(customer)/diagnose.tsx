@@ -1,16 +1,18 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { Image, ScrollView, Text, View, Pressable, Animated } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TextInput, View, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
 
 import { Button } from '@/components/ui/Button';
 import { DiagnosisCard } from '@/components/customer/DiagnosisCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { diagnoseImage } from '@/lib/diagnose';
+import { transcribeAudio } from '@/lib/transcribe';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
 import { useJob } from '@/hooks/useJob';
 
@@ -103,6 +105,9 @@ export default function Diagnose() {
   const [diagnosis, setDiagnosis] = useState<ReturnType<typeof parseDiagnosis> | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [problemDescription, setProblemDescription] = useState('');
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const stepAnim   = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -118,6 +123,8 @@ export default function Diagnose() {
   }, [step]);
 
   const addressOptions = addressesQuery.data ?? [];
+  const hasProblemDescription = problemDescription.trim().length > 0;
+  const canAnalyze = Boolean(media || hasProblemDescription) && !recording && !isTranscribing;
 
   const tips = useMemo(() => [
     { icon: 'videocam', text: 'Record the sound for 10 seconds' },
@@ -137,11 +144,19 @@ export default function Diagnose() {
   };
 
   const handleAnalyze = async () => {
-    if (!media) return;
+    if (!media && !hasProblemDescription) {
+      setError('Add a photo/video or describe the problem first.');
+      return;
+    }
     setStep('processing');
     setError(null);
     try {
-      const response     = await diagnoseImage(media.uri, undefined, category ?? undefined);
+      const response     = await diagnoseImage(
+        media?.uri ?? null,
+        undefined,
+        category ?? undefined,
+        problemDescription
+      );
       const parsed       = parseDiagnosis(response);
       setDiagnosis(parsed);
       setStep('result');
@@ -155,6 +170,60 @@ export default function Diagnose() {
     }
   };
 
+  const handleToggleRecording = async () => {
+    if (recording) {
+      const activeRecording = recording;
+      setRecording(null);
+      setIsTranscribing(true);
+      setError(null);
+
+      try {
+        await activeRecording.stopAndUnloadAsync();
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        const uri = activeRecording.getURI();
+        if (!uri) throw new Error('Recording was not saved. Please try again.');
+
+        const transcript = await transcribeAudio(uri);
+        if (!transcript) throw new Error('We could not hear anything clearly. Please try again.');
+
+        setProblemDescription((current) => {
+          const trimmed = current.trim();
+          return trimmed ? `${trimmed}\n${transcript}` : transcript;
+        });
+      } catch (err) {
+        console.error('Transcription failed', err);
+        const message = err instanceof Error
+          ? err.message
+          : 'We could not transcribe the recording. Please try again.';
+        setError(message);
+      } finally {
+        setIsTranscribing(false);
+      }
+      return;
+    }
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        setError('Microphone permission is required to use speech to text.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+      const { recording: nextRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setError(null);
+      setRecording(nextRecording);
+    } catch (err) {
+      console.error('Recording failed', err);
+      setError('We could not start recording. Please try again.');
+    }
+  };
+
   const handleBook = async () => {
     if (!diagnosis?.success || !profile?.id || !selectedAddress) return;
     const job = await createJob({
@@ -162,7 +231,10 @@ export default function Diagnose() {
       status:            'searching',
       ai_diagnosis:      diagnosis.data.fault_name,
       ai_confidence:     diagnosis.data.confidence,
-      ai_raw_response:   diagnosis.data,
+      ai_raw_response:   {
+        ...diagnosis.data,
+        customer_description: problemDescription.trim() || null,
+      },
       est_cost_min:      diagnosis.data.est_cost_min,
       est_cost_max:      diagnosis.data.est_cost_max,
       address_id:        selectedAddress,
@@ -172,6 +244,24 @@ export default function Diagnose() {
 
   const stepLabels = ['Capture', 'Analyse', 'Book'];
   const stepIndex  = step === 'capture' ? 0 : step === 'processing' ? 1 : 2;
+
+  const handleBack = () => {
+    if (step === 'result' || step === 'processing') {
+      setStep('capture');
+      setDiagnosis(null);
+      setSelectedAddress(null);
+      setError(null);
+      return;
+    }
+
+    if (media) {
+      setMedia(null);
+      setError(null);
+      return;
+    }
+
+    router.back();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Theme.cream }} edges={['top']}>
@@ -185,7 +275,7 @@ export default function Diagnose() {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
               <Pressable
-                onPress={() => router.back()}
+                onPress={handleBack}
                 style={{
                   width: 38, height: 38, borderRadius: 19,
                   backgroundColor: 'rgba(255,255,255,0.12)',
@@ -294,6 +384,76 @@ export default function Diagnose() {
                 </View>
 
                 <View style={{
+                  backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16,
+                  borderWidth: 1, borderColor: Theme.border,
+                  shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>
+                        Describe the problem
+                      </Text>
+                      <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 2 }}>
+                        Add symptoms, sounds, smells, error codes, or when it started.
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={handleToggleRecording}
+                      disabled={isTranscribing}
+                      style={{
+                        width: 44, height: 44, borderRadius: 22,
+                        backgroundColor: recording ? Theme.error : Theme.blueLight,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      {isTranscribing ? (
+                        <ActivityIndicator color={Theme.blue} />
+                      ) : (
+                        <Ionicons
+                          name={recording ? 'stop' : 'mic'}
+                          size={20}
+                          color={recording ? Theme.white : Theme.blue}
+                        />
+                      )}
+                    </Pressable>
+                  </View>
+
+                  <TextInput
+                    value={problemDescription}
+                    onChangeText={setProblemDescription}
+                    multiline
+                    textAlignVertical="top"
+                    placeholder="Example: AC is running but not cooling, and I hear a clicking sound near the outdoor unit."
+                    placeholderTextColor={Theme.textLight}
+                    style={{
+                      minHeight: 110,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: recording ? Theme.error + '55' : Theme.border,
+                      backgroundColor: Theme.cream,
+                      padding: 14,
+                      color: Theme.textDark,
+                      fontSize: 14,
+                      lineHeight: 20,
+                    }}
+                  />
+
+                  <Text style={{
+                    color: recording ? Theme.error : Theme.textLight,
+                    fontSize: 12,
+                    marginTop: 10,
+                    fontWeight: recording ? '700' : '500',
+                  }}>
+                    {recording
+                      ? 'Recording... tap stop when finished.'
+                      : isTranscribing
+                        ? 'Converting speech to text...'
+                        : 'Tap the mic to speak instead of typing.'}
+                  </Text>
+                </View>
+
+                <View style={{
                   backgroundColor: Theme.creamCard, borderRadius: 16, padding: 16,
                   borderWidth: 1, borderColor: Theme.border,
                 }}>
@@ -316,19 +476,40 @@ export default function Diagnose() {
 
                 <Pressable
                   onPress={handleAnalyze}
-                  disabled={!media}
+                  disabled={!canAnalyze}
                   style={{
-                    backgroundColor: media ? Theme.amber : Theme.border,
+                    backgroundColor: canAnalyze ? Theme.amber : Theme.border,
                     borderRadius: 16, paddingVertical: 16,
                     alignItems: 'center',
                     flexDirection: 'row', justifyContent: 'center', gap: 8,
                   }}
                 >
-                  <Ionicons name="hardware-chip" size={20} color={media ? Theme.navy : Theme.textLight} />
-                  <Text style={{ color: media ? Theme.navy : Theme.textLight, fontWeight: '800', fontSize: 15 }}>
+                  <Ionicons name="hardware-chip" size={20} color={canAnalyze ? Theme.navy : Theme.textLight} />
+                  <Text style={{ color: canAnalyze ? Theme.navy : Theme.textLight, fontWeight: '800', fontSize: 15 }}>
                     Analyse with AI
                   </Text>
                 </Pressable>
+
+                {/* VISIBLE CHANGE MEDIA BUTTON */}
+                {media ? (
+                  <Pressable
+                    onPress={() => {
+                      setMedia(null);
+                      setError(null);
+                    }}
+                    style={{
+                      backgroundColor: Theme.creamCard,
+                      borderWidth: 1, borderColor: Theme.border,
+                      borderRadius: 16, paddingVertical: 16,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ color: Theme.textMid, fontWeight: '700', fontSize: 15 }}>
+                      Change Media
+                    </Text>
+                  </Pressable>
+                ) : null}
+
               </View>
             ) : null}
 

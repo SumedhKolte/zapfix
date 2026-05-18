@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.2';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
+const groqApiKey = Deno.env.get('GROQ_API_KEY') ?? '';
 
 const authClient = (authHeader: string) =>
   createClient(supabaseUrl, supabaseAnonKey, {
@@ -13,8 +13,8 @@ const authClient = (authHeader: string) =>
 
 const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +23,8 @@ const CORS_HEADERS = {
 };
 
 const SYSTEM_PROMPT = `You are an expert home appliance and AC repair technician with 20 years of experience in India.
-Analyse the provided image carefully and diagnose the fault.
+Analyse the provided image and/or customer problem description carefully and diagnose the fault.
+Use the customer's description as important context. If the photo and description conflict, mention the uncertainty in fault_description and reduce confidence.
 
 You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no code fences. Just raw JSON.
 
@@ -64,6 +65,7 @@ serve(async (req: Request) => {
     storage_path?: string;
     job_id?: string;
     category?: string;
+    problem_description?: string;
   };
 
   try {
@@ -72,10 +74,11 @@ serve(async (req: Request) => {
     return jsonError('Invalid JSON body', 400);
   }
 
-  const { base64, mime_type, storage_path, job_id, category } = body;
+  const { base64, mime_type, storage_path, job_id, category, problem_description } = body;
+  const problemDescription = problem_description?.trim();
 
-  let imageBase64: string;
-  let imageMime: string;
+  let imageBase64: string | null = null;
+  let imageMime: string | null = null;
 
   if (base64 && mime_type) {
     imageBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
@@ -111,53 +114,79 @@ serve(async (req: Request) => {
     };
     imageMime = mimeMap[ext] ?? 'image/jpeg';
   } else {
-    return jsonError(
-      'Provide either { base64, mime_type } or { storage_path }',
-      400
-    );
+    if (!problemDescription) {
+      return jsonError(
+        'Provide either { base64, mime_type }, { storage_path }, or problem_description',
+        400
+      );
+    }
   }
 
-  console.log(`Calling Gemini | user: ${userId} | mime: ${imageMime} | job: ${job_id ?? 'none'}`);
+  console.log(`Calling Groq | user: ${userId} | mime: ${imageMime ?? 'text-only'} | job: ${job_id ?? 'none'}`);
 
-  const geminiPayload = {
-    contents: [
+  const userContent: Array<Record<string, unknown>> = [];
+  if (imageBase64 && imageMime) {
+    userContent.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${imageMime};base64,${imageBase64}`
+      }
+    });
+  }
+
+  const contextLines = [
+    category ? `Category hint: ${category}.` : '',
+    problemDescription ? `Customer problem description: ${problemDescription}` : '',
+    SYSTEM_PROMPT
+  ].filter(Boolean);
+
+  userContent.push({
+    type: 'text',
+    text: contextLines.join('\n\n')
+  });
+
+  const groqPayload = {
+    model: GROQ_MODEL,
+    temperature: 0.2,
+    max_tokens: 1024,
+    messages: [
       {
-        parts: [
-          { inline_data: { mime_type: imageMime, data: imageBase64 } },
-          { text: category ? `Category hint: ${category}.\n\n${SYSTEM_PROMPT}` : SYSTEM_PROMPT },
-        ],
+        role: 'system',
+        content: 'You are a strict JSON generator. Return only valid JSON.'
       },
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 1024,
-    },
+      {
+        role: 'user',
+        content: userContent
+      }
+    ]
   };
 
-  let geminiRes: Response;
+  let groqRes: Response;
   try {
-    geminiRes = await fetch(GEMINI_URL, {
+    groqRes = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(geminiPayload),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${groqApiKey}`,
+      },
+      body: JSON.stringify(groqPayload),
     });
   } catch (e) {
-    console.error('Gemini network error:', e);
-    return jsonError('Failed to reach Gemini API. Verify GEMINI_API_KEY secret is set.', 502);
+    console.error('Groq network error:', e);
+    return jsonError('Failed to reach Groq API. Verify GROQ_API_KEY secret is set.', 502);
   }
 
-  if (!geminiRes.ok) {
-    const errText = await geminiRes.text();
-    console.error(`Gemini ${geminiRes.status}:`, errText);
-    return jsonError(`Gemini API returned ${geminiRes.status}. Check API key and quota.`, 502);
+  if (!groqRes.ok) {
+    const errText = await groqRes.text();
+    console.error(`Groq ${groqRes.status}:`, errText);
+    return jsonError(`Groq API returned ${groqRes.status}. Check API key and quota.`, 502);
   }
 
-  const geminiData = await geminiRes.json();
-  const rawText: string =
-    geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const groqData = await groqRes.json();
+  const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
 
   if (!rawText) {
-    console.error('Gemini empty response:', JSON.stringify(geminiData));
+    console.error('Groq empty response:', JSON.stringify(groqData));
     return jsonError('AI returned empty response. Please try again.', 422);
   }
 
@@ -166,7 +195,7 @@ serve(async (req: Request) => {
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     diagnosis = JSON.parse(cleaned);
   } catch {
-    console.error('Non-JSON from Gemini:', rawText);
+    console.error('Non-JSON from Groq:', rawText);
     return jsonError(
       'AI could not clearly analyse this image. Please take a clearer, well-lit photo and try again.',
       422
@@ -175,7 +204,7 @@ serve(async (req: Request) => {
 
   let savedStoragePath: string | null = null;
 
-  if (base64 && job_id) {
+  if (base64 && imageBase64 && imageMime && job_id) {
     const ext = imageMime === 'image/png' ? 'png'
       : imageMime === 'image/webp' ? 'webp'
       : 'jpg';
@@ -201,7 +230,10 @@ serve(async (req: Request) => {
         entity_type: 'job_before',
         storage_url: savedStoragePath,
         ai_verified: false,
-        ai_result: diagnosis,
+        ai_result: {
+          ...diagnosis,
+          customer_description: problemDescription ?? null,
+        },
       });
     }
   }
@@ -212,7 +244,10 @@ serve(async (req: Request) => {
       .update({
         ai_diagnosis: String(diagnosis.fault_name ?? ''),
         ai_confidence: Number(diagnosis.confidence ?? 0),
-        ai_raw_response: diagnosis,
+        ai_raw_response: {
+          ...diagnosis,
+          customer_description: problemDescription ?? null,
+        },
         est_cost_min: Number(diagnosis.est_cost_min ?? 0),
         est_cost_max: Number(diagnosis.est_cost_max ?? 0),
         status: 'triage',
@@ -228,6 +263,7 @@ serve(async (req: Request) => {
   return new Response(
     JSON.stringify({
       ...diagnosis,
+      customer_description: problemDescription ?? null,
       _meta: { saved_path: savedStoragePath, job_id: job_id ?? null }
     }),
     { headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }

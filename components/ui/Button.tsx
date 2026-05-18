@@ -6,7 +6,7 @@ import {
   View,
   Platform,
 } from 'react-native';
-import type { PressableProps, PressableStateCallbackType } from 'react-native';
+import type { PressableProps, PressableStateCallbackType, StyleProp, ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -38,23 +38,24 @@ const sizeStyles: Record<
   sm: {
     height: 58,
     paddingHorizontal: 26,
-    fontSize: 14,
+    fontSize: 15,
     borderRadius: 29,
     loaderSize: 18,
   },
   md: {
-    height: 70,
-    paddingHorizontal: 30,
+    height: 72,
+    paddingHorizontal: 32,
     fontSize: 17,
-    borderRadius: 35,
+    borderRadius: 36,
     loaderSize: 22,
   },
   lg: {
-    height: 80,
-    paddingHorizontal: 34,
-    fontSize: 18,
-    borderRadius: 40,
-    loaderSize: 24,
+    // Super-sized, extra chunky "pill" shape globally for lg
+    height: 90,
+    paddingHorizontal: 40,
+    fontSize: 19,
+    borderRadius: 45, 
+    loaderSize: 26,
   },
 };
 
@@ -124,18 +125,26 @@ export const Button = ({
   const variantStyle = variantStyles[variant];
   const isDisabled = disabled || loading;
 
-  const baseStyle = {
+  // Flatten styles to check if the user is overriding borderRadius or height manually
+  const flattenedStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
+  const activeBorderRadius = flattenedStyle.borderRadius ?? sizeStyle.borderRadius;
+
+  const baseStyle: ViewStyle = {
     height: sizeStyle.height,
     minHeight: sizeStyle.height,
+    flexShrink: 0,
     paddingHorizontal: sizeStyle.paddingHorizontal,
     borderRadius: sizeStyle.borderRadius,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: variantStyle.background,
     borderWidth: variantStyle.border ? 2 : 0,
     borderColor: variantStyle.border,
-    overflow: 'hidden' as const,
-    alignSelf: fullWidth ? ('stretch' as const) : ('auto' as const),
+    alignSelf: fullWidth ? 'stretch' : 'auto',
+    
+    // 🚨 REMOVED `overflow: 'hidden'` HERE. 
+    // In React Native, overflow hidden destroys shadows!
+
     // Shadow iOS
     shadowColor: variantStyle.shadowColor,
     shadowOpacity: isDisabled ? 0 : variantStyle.shadowOpacity,
@@ -145,7 +154,7 @@ export const Button = ({
     elevation: isDisabled ? 0 : variantStyle.elevation,
   };
 
-  const resolveStyle = (state: PressableStateCallbackType) => {
+  const resolveStyle = (state: PressableStateCallbackType): StyleProp<ViewStyle> => {
     const userStyle = typeof style === 'function' ? style(state) : style;
     return [
       baseStyle,
@@ -232,7 +241,8 @@ export const Button = ({
         colors={gradColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        // Explicitly applying border radius here instead of relying on parent overflow
+        style={[StyleSheet.absoluteFillObject, { borderRadius: activeBorderRadius }]}
       />
     );
   };
@@ -243,7 +253,8 @@ export const Button = ({
       style={[
         StyleSheet.absoluteFillObject,
         styles.pressOverlay,
-        { borderRadius: sizeStyle.borderRadius },
+        // Ensures the overlay matches the rounded corners correctly
+        { borderRadius: activeBorderRadius },
       ]}
       pointerEvents="none"
     />
@@ -284,6 +295,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1, // Ensures text stays above gradient
   },
   label: {
     fontWeight: '800',
@@ -304,6 +316,8 @@ const styles = StyleSheet.create({
   loaderWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
+    zIndex: 1,
   },
 });

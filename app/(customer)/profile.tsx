@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
+import { useJob } from '@/hooks/useJob';
 
 const Theme = {
   navy: '#0F2057',
@@ -22,15 +23,17 @@ const Theme = {
   white: '#FFFFFF',
   error: '#C23232',
   errorLight: '#FFF0F0',
+  success: '#1A7A4A',
+  successLight: '#E8F5EE',
 };
 
 function AnimatedRow({ children, delay = 0 }: any) {
   const opacity    = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(-12)).current;
+  const translateX = useRef(new Animated.Value(-14)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 1, duration: 320, delay, useNativeDriver: true }),
       Animated.spring(translateX, { toValue: 0, tension: 90, friction: 10, delay, useNativeDriver: true }),
     ]).start();
   }, []);
@@ -42,7 +45,7 @@ function AnimatedRow({ children, delay = 0 }: any) {
   );
 }
 
-function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, danger = false }: any) {
+function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, danger = false, badge }: any) {
   const scale = useRef(new Animated.Value(1)).current;
 
   return (
@@ -61,7 +64,7 @@ function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, d
       >
         <View style={{
           width: 36, height: 36, borderRadius: 10,
-          backgroundColor: iconBg || (danger ? Theme.error + '20' : Theme.navy + '10'),
+          backgroundColor: iconBg ?? (danger ? Theme.error + '20' : Theme.navy + '10'),
           alignItems: 'center', justifyContent: 'center',
         }}>
           <Ionicons name={icon} size={18} color={danger ? Theme.error : Theme.navy} />
@@ -74,6 +77,14 @@ function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, d
             <Text style={{ fontSize: 12, color: Theme.textLight, marginTop: 1 }}>{sublabel}</Text>
           ) : null}
         </View>
+        {badge ? (
+          <View style={{
+            backgroundColor: Theme.amber, borderRadius: 8,
+            paddingHorizontal: 7, paddingVertical: 2,
+          }}>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.navy }}>{badge}</Text>
+          </View>
+        ) : null}
         {chevron ? (
           <Ionicons name="chevron-forward" size={16} color={danger ? Theme.error + '80' : Theme.textLight} />
         ) : null}
@@ -86,7 +97,7 @@ function SectionHeader({ title }: { title: string }) {
   return (
     <Text style={{
       fontSize: 11, fontWeight: '700', color: Theme.textMid,
-      letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6,
+      letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 6,
     }}>
       {title.toUpperCase()}
     </Text>
@@ -98,6 +109,8 @@ function Card({ children, style }: any) {
     <View style={{
       backgroundColor: Theme.creamCard, borderRadius: 18,
       overflow: 'hidden', borderWidth: 1, borderColor: Theme.border,
+      shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
       ...style,
     }}>
       {children}
@@ -108,12 +121,16 @@ function Card({ children, style }: any) {
 export default function Profile() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
+  const { jobsQuery } = useJob({ customerId: profile?.id });
   const [signingOut, setSigningOut] = useState(false);
   const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
   }, []);
+
+  const completedCount = (jobsQuery.data ?? []).filter(j => j.status === 'completed').length;
+  const zapPoints      = completedCount * 100 + (completedCount >= 5 ? 250 : 0) + (completedCount >= 3 ? 150 : 0);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -143,7 +160,7 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Theme.cream }} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
 
         {/* Header */}
         <Animated.View style={{ opacity: headerAnim }}>
@@ -155,7 +172,7 @@ export default function Profile() {
               ACCOUNT
             </Text>
             <Text style={{ color: Theme.white, fontSize: 22, fontWeight: '800', marginTop: 3 }}>
-              Settings
+              Profile
             </Text>
           </LinearGradient>
         </Animated.View>
@@ -166,14 +183,16 @@ export default function Profile() {
           <AnimatedRow delay={60}>
             <Card style={{ marginBottom: 0 }}>
               <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                {/* Avatar */}
                 <View style={{
-                  width: 62, height: 62, borderRadius: 31,
+                  width: 64, height: 64, borderRadius: 32,
                   backgroundColor: Theme.navy,
                   alignItems: 'center', justifyContent: 'center',
                   borderWidth: 3, borderColor: Theme.amber,
                 }}>
                   <Text style={{ color: Theme.amber, fontSize: 22, fontWeight: '800' }}>{initials}</Text>
                 </View>
+
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 17, fontWeight: '800', color: Theme.textDark }}>
                     {profile?.full_name ?? 'Your Name'}
@@ -181,61 +200,160 @@ export default function Profile() {
                   <Text style={{ color: Theme.textMid, fontSize: 13, marginTop: 2 }}>
                     {profile?.phone_number ?? '+91 XXXXX XXXXX'}
                   </Text>
+                  {/* Points badge */}
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    marginTop: 6, backgroundColor: Theme.amber + '20',
+                    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                    alignSelf: 'flex-start',
+                  }}>
+                    <Ionicons name="flash" size={11} color={Theme.amber} />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.navy }}>
+                      {zapPoints.toLocaleString('en-IN')} ZP
+                    </Text>
+                  </View>
                 </View>
+
                 <Pressable
                   hitSlop={10}
+                  onPress={() => router.push('/(customer)/edit-profile')}
                   style={{
-                    height: 40,
-                    paddingHorizontal: 14,
-                    borderRadius: 14,
+                    height: 40, paddingHorizontal: 14, borderRadius: 14,
                     backgroundColor: Theme.navy,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'row',
-                    gap: 6,
-                    borderWidth: 1.5,
-                    borderColor: Theme.amber + '80',
+                    alignItems: 'center', justifyContent: 'center',
+                    flexDirection: 'row', gap: 6,
+                    borderWidth: 1.5, borderColor: Theme.amber + '80',
                   }}
                 >
-                  <Ionicons name="pencil" size={16} color={Theme.white} />
-                  <Text style={{ color: Theme.white, fontSize: 12, fontWeight: '700' }}>
-                    Edit
-                  </Text>
+                  <Ionicons name="pencil" size={14} color={Theme.white} />
+                  <Text style={{ color: Theme.white, fontSize: 12, fontWeight: '700' }}>Edit</Text>
                 </Pressable>
+              </View>
+
+              {/* Stats bar */}
+              <View style={{
+                flexDirection: 'row', borderTopWidth: 1, borderTopColor: Theme.border,
+              }}>
+                {[
+                  { label: 'Services',  value: (jobsQuery.data ?? []).length.toString() },
+                  { label: 'Completed', value: completedCount.toString() },
+                  { label: 'Zap Points', value: zapPoints.toLocaleString('en-IN') },
+                ].map((s, i) => (
+                  <View key={s.label} style={{
+                    flex: 1, alignItems: 'center', paddingVertical: 12,
+                    borderRightWidth: i < 2 ? 1 : 0, borderRightColor: Theme.border,
+                  }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: Theme.textDark }}>{s.value}</Text>
+                    <Text style={{ fontSize: 11, color: Theme.textLight, marginTop: 2 }}>{s.label}</Text>
+                  </View>
+                ))}
               </View>
             </Card>
           </AnimatedRow>
         </View>
 
+        {/* Account Section */}
         <AnimatedRow delay={120}>
           <SectionHeader title="Account" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow icon="receipt"           label="My Orders"          sublabel="Track active and past jobs"     onPress={() => router.push('/(customer)/jobs')} />
-            <SettingsRow icon="location"          label="Saved Addresses"    sublabel="Manage your service locations" onPress={() => {}} />
-            <SettingsRow icon="notifications"     label="Notifications"      sublabel="Push notifications · Reminders" onPress={() => router.push('/(customer)/notifications')} />
-            <SettingsRow icon="search"            label="Find a Pro"         sublabel="Matching and availability"     onPress={() => router.push('/(customer)/matching')} />
-            <SettingsRow icon="shield-checkmark"  label="Login & Security"   sublabel="Password · Two-factor auth"    onPress={() => {}} />
+            <SettingsRow
+              icon="receipt"
+              label="My Orders"
+              sublabel="Track active and past jobs"
+              onPress={() => router.push('/(customer)/jobs')}
+            />
+            <SettingsRow
+              icon="gift"
+              label="Zap Rewards"
+              sublabel="Points · Achievements · Offers"
+              onPress={() => router.push('/(customer)/rewards')}
+              iconBg={Theme.amber + '20'}
+              badge={zapPoints > 0 ? `${zapPoints} ZP` : undefined}
+            />
+            <SettingsRow
+              icon="notifications"
+              label="Notifications"
+              sublabel="Push notifications · Reminders"
+              onPress={() => router.push('/(customer)/notifications')}
+            />
+            <SettingsRow
+              icon="search"
+              label="Find a Pro"
+              sublabel="Matching and availability"
+              onPress={() => router.push('/(customer)/matching')}
+            />
+            <SettingsRow
+              icon="location"
+              label="Saved Addresses"
+              sublabel="Manage your service locations"
+              onPress={() => router.push('/(customer)/addresses')}
+            />
+            <SettingsRow
+              icon="shield-checkmark"
+              label="Login &amp; Security"
+              sublabel="Password · Two-factor auth"
+              onPress={() => router.push('/(customer)/login-security')}
+            />
           </Card>
         </AnimatedRow>
 
+        {/* Preferences */}
         <AnimatedRow delay={180}>
           <SectionHeader title="Preferences" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow icon="contrast"  label="Appearance" sublabel="Light · Dark · System" onPress={() => {}} />
-            <SettingsRow icon="language"  label="Language"   sublabel="English"               onPress={() => {}} />
+            <SettingsRow
+              icon="contrast"
+              label="Appearance"
+              sublabel="Light · Dark · System"
+              onPress={() => router.push('/(customer)/appearance')}
+            />
+            <SettingsRow
+              icon="language"
+              label="Language"
+              sublabel="English"
+              onPress={() => router.push('/(customer)/language')}
+            />
           </Card>
         </AnimatedRow>
 
+        {/* Support */}
         <AnimatedRow delay={240}>
           <SectionHeader title="Support" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow icon="chatbubble-ellipses" label="Feedback"       sublabel="Share your thoughts"      onPress={() => {}} />
-            <SettingsRow icon="help-circle"         label="Help & Support" sublabel="FAQs · Contact us"        onPress={() => {}} />
-            <SettingsRow icon="document-text"       label="Legal"          sublabel="Privacy · Terms of service" onPress={() => {}} />
-            <SettingsRow icon="information-circle"  label="About Zapfix"   sublabel="Version 1.0.0"            onPress={() => {}} />
+            <SettingsRow
+              icon="chatbubble-ellipses"
+              label="Feedback"
+              sublabel="Share your thoughts"
+              onPress={() =>
+                Alert.alert('Feedback', 'Email us at hello@zapfix.in — we read every message.')
+              }
+            />
+            <SettingsRow
+              icon="help-circle"
+              label="Help &amp; Support"
+              sublabel="FAQs · Contact us"
+              onPress={() =>
+                Alert.alert('Help & Support', 'Chat support is available Mon–Sat, 9am–8pm IST.\n\nEmail: support@zapfix.in')
+              }
+            />
+            <SettingsRow
+              icon="document-text"
+              label="Legal"
+              sublabel="Privacy · Terms of service"
+              onPress={() => router.push('/(customer)/legal')}
+            />
+            <SettingsRow
+              icon="information-circle"
+              label="About Zapfix"
+              sublabel="Version 1.0.0"
+              onPress={() =>
+                Alert.alert('Zapfix', 'Version 1.0.0\n\nIndia\'s smartest home repair platform powered by AI.\n\n© 2025 Zapfix Technologies')
+              }
+            />
           </Card>
         </AnimatedRow>
 
+        {/* Sign Out */}
         <AnimatedRow delay={300}>
           <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
             <Pressable
