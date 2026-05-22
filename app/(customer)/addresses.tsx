@@ -11,6 +11,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { supabase } from '@/lib/supabase';
+import { geocodeAddress, toGeoJSONPoint } from '@/utils/geo';
 import type { Tables } from '@/types/database';
 
 const Theme = {
@@ -101,6 +102,9 @@ export default function Addresses() {
     setSaving(true);
     setError(null);
     try {
+      const coords = await geocodeAddress(trimmed);
+      const location = toGeoJSONPoint(coords);
+
       if (editingId) {
         const { data, error: updateError } = await supabase
           .from('customer_addresses')
@@ -108,6 +112,7 @@ export default function Addresses() {
             label: label.trim().length ? label.trim() : null,
             address_text: trimmed,
             is_default: makeDefault,
+            location,
           })
           .eq('id', editingId)
           .select('*')
@@ -125,6 +130,7 @@ export default function Addresses() {
             label: label.trim().length ? label.trim() : null,
             address_text: trimmed,
             is_default: makeDefault,
+            location,
           })
           .select('*')
           .single();
@@ -137,8 +143,8 @@ export default function Addresses() {
 
       await queryClient.invalidateQueries({ queryKey: ['addresses', profile.id] });
       resetForm();
-    } catch {
-      setError('Could not save your address. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your address. Please try again.');
     } finally {
       setSaving(false);
     }

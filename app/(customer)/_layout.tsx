@@ -224,46 +224,18 @@ export default function CustomerLayout() {
       />
 
       {/* ── Hidden routes — only href: null, NO tabBarButton ── */}
-      <Tabs.Screen
-        name="matching"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="job/[id]"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="job/complete"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="edit-profile"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="addresses"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="login-security"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="appearance"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="language"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="legal"
-        options={{ href: null }}
-      />
+      <Tabs.Screen name="matching" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="job/[id]" options={{ href: null }} />
+      <Tabs.Screen name="job/complete" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="addresses" options={{ href: null }} />
+      <Tabs.Screen name="login-security" options={{ href: null }} />
+      <Tabs.Screen name="appearance" options={{ href: null }} />
+      <Tabs.Screen name="language" options={{ href: null }} />
+      <Tabs.Screen name="legal" options={{ href: null }} />
+      <Tabs.Screen name="receipt/[id]" options={{ href: null }} />
+      <Tabs.Screen name="receipts" options={{ href: null }} />
     </Tabs>
   );
 }

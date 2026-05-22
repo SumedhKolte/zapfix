@@ -36,25 +36,25 @@ const sizeStyles: Record<
   }
 > = {
   sm: {
-    height: 58,
-    paddingHorizontal: 26,
-    fontSize: 15,
-    borderRadius: 29,
+    height: 64,
+    paddingHorizontal: 28,
+    fontSize: 16,
+    borderRadius: 32,
     loaderSize: 18,
   },
   md: {
-    height: 72,
-    paddingHorizontal: 32,
-    fontSize: 17,
-    borderRadius: 36,
+    height: 80,
+    paddingHorizontal: 34,
+    fontSize: 18,
+    borderRadius: 40,
     loaderSize: 22,
   },
   lg: {
     // Super-sized, extra chunky "pill" shape globally for lg
-    height: 90,
-    paddingHorizontal: 40,
-    fontSize: 19,
-    borderRadius: 45, 
+    height: 96,
+    paddingHorizontal: 44,
+    fontSize: 20,
+    borderRadius: 48,
     loaderSize: 26,
   },
 };

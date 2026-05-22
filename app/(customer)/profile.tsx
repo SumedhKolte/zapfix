@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
+import { Button } from '@/components/ui/Button';
 
 const Theme = {
   navy: '#0F2057',
@@ -263,6 +264,12 @@ export default function Profile() {
               onPress={() => router.push('/(customer)/jobs')}
             />
             <SettingsRow
+              icon="document-text"
+              label="Booking Receipts"
+              sublabel="View receipts for every booking"
+              onPress={() => router.push('/(customer)/receipts')}
+            />
+            <SettingsRow
               icon="gift"
               label="Zap Rewards"
               sublabel="Points · Achievements · Offers"
@@ -275,12 +282,6 @@ export default function Profile() {
               label="Notifications"
               sublabel="Push notifications · Reminders"
               onPress={() => router.push('/(customer)/notifications')}
-            />
-            <SettingsRow
-              icon="search"
-              label="Find a Pro"
-              sublabel="Matching and availability"
-              onPress={() => router.push('/(customer)/matching')}
             />
             <SettingsRow
               icon="location"
@@ -356,23 +357,15 @@ export default function Profile() {
         {/* Sign Out */}
         <AnimatedRow delay={300}>
           <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-            <Pressable
+            <Button
+              variant="danger"
               onPress={handleSignOut}
+              loading={signingOut}
               disabled={signingOut}
-              style={{
-                backgroundColor: Theme.error + '10',
-                borderRadius: 16, paddingVertical: 16,
-                flexDirection: 'row', alignItems: 'center',
-                justifyContent: 'center', gap: 10,
-                borderWidth: 1.5, borderColor: Theme.error + '30',
-                opacity: signingOut ? 0.6 : 1,
-              }}
+              leftIcon={<Ionicons name="log-out-outline" size={20} color={Theme.white} />}
             >
-              <Ionicons name="log-out-outline" size={20} color={Theme.error} />
-              <Text style={{ color: Theme.error, fontWeight: '700', fontSize: 15 }}>
-                {signingOut ? 'Signing out...' : 'Sign Out'}
-              </Text>
-            </Pressable>
+              {signingOut ? 'Signing out...' : 'Sign Out'}
+            </Button>
           </View>
         </AnimatedRow>
 

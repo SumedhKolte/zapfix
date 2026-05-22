@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TextInput, View, Pressable, Animated } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Text, TextInput, View, Pressable, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,8 +13,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { diagnoseImage } from '@/lib/diagnose';
 import { transcribeAudio } from '@/lib/transcribe';
+import { supabase } from '@/lib/supabase';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
 import { useJob } from '@/hooks/useJob';
+import { createNotification } from '@/services/notifications';
+import { geocodeAddress, toGeoJSONPoint } from '@/utils/geo';
 
 const Theme = {
   navy: '#0F2057',
@@ -34,15 +37,53 @@ const Theme = {
   errorLight: '#FFF0F0',
 };
 
+type DateOption = { date: Date; label: string; sublabel: string };
+
+const buildDateOptions = (): DateOption[] => {
+  const today = new Date();
+  const out: DateOption[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+    const day = d.toLocaleDateString('en-IN', { day: 'numeric' });
+    const month = d.toLocaleDateString('en-IN', { month: 'short' });
+    out.push({
+      date: d,
+      label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayName,
+      sublabel: `${day} ${month}`,
+    });
+  }
+  return out;
+};
+
+const buildTimeSlots = (selectedDate: Date): { date: Date; label: string }[] => {
+  const slots: { date: Date; label: string }[] = [];
+  const isToday = (() => {
+    const t = new Date();
+    return t.toDateString() === selectedDate.toDateString();
+  })();
+  const startHour = isToday ? Math.max(8, new Date().getHours() + 1) : 8;
+  for (let h = startHour; h <= 20; h++) {
+    const d = new Date(selectedDate);
+    d.setHours(h, 0, 0, 0);
+    const hourLabel = ((h + 11) % 12) + 1;
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    slots.push({ date: d, label: `${hourLabel}:00 ${suffix}` });
+  }
+  return slots;
+};
+
 function ProcessingAnimation() {
-  const pulse  = useRef(new Animated.Value(1)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1.12, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1,    duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
     ).start();
     Animated.loop(
@@ -55,11 +96,7 @@ function ProcessingAnimation() {
   return (
     <View style={{ alignItems: 'center', gap: 20, paddingVertical: 60 }}>
       <Animated.View style={{ transform: [{ scale: pulse }] }}>
-        <View style={{
-          width: 100, height: 100, borderRadius: 50,
-          backgroundColor: Theme.blue + '15',
-          alignItems: 'center', justifyContent: 'center',
-        }}>
+        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: Theme.blue + '15', alignItems: 'center', justifyContent: 'center' }}>
           <Animated.View style={{ transform: [{ rotate: spin }] }}>
             <Ionicons name="hardware-chip" size={48} color={Theme.blue} />
           </Animated.View>
@@ -68,27 +105,7 @@ function ProcessingAnimation() {
       <Text style={{ fontSize: 18, fontWeight: '700', color: Theme.textDark }}>
         Zapfix is analysing...
       </Text>
-      <Text style={{ fontSize: 13, color: Theme.textMid }}>Usually takes 5–10 seconds</Text>
-      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-        {[0, 1, 2].map((i) => {
-          const dotAnim = useRef(new Animated.Value(0.3)).current;
-          useEffect(() => {
-            Animated.loop(
-              Animated.sequence([
-                Animated.delay(i * 200),
-                Animated.timing(dotAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-                Animated.timing(dotAnim, { toValue: 0.3, duration: 400, useNativeDriver: true }),
-              ])
-            ).start();
-          }, []);
-          return (
-            <Animated.View key={i} style={{
-              width: 8, height: 8, borderRadius: 4,
-              backgroundColor: Theme.blue, opacity: dotAnim,
-            }} />
-          );
-        })}
-      </View>
+      <Text style={{ fontSize: 13, color: Theme.textMid }}>Usually takes a few seconds</Text>
     </View>
   );
 }
@@ -100,16 +117,23 @@ export default function Diagnose() {
   const { addressesQuery } = useProfile(profile?.id ?? '');
   const { createJob } = useJob({ customerId: profile?.id });
 
-  const [step, setStep]           = useState<'capture' | 'processing' | 'result'>('capture');
-  const [media, setMedia]         = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+  const [step, setStep] = useState<'capture' | 'processing' | 'result'>('capture');
+  const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
   const [diagnosis, setDiagnosis] = useState<ReturnType<typeof parseDiagnosis> | null>(null);
-  const [error, setError]         = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [problemDescription, setProblemDescription] = useState('');
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
-  const stepAnim   = useRef(new Animated.Value(0)).current;
+  const dates = useMemo(() => buildDateOptions(), []);
+  const [selectedDate, setSelectedDate] = useState<Date>(dates[0]?.date ?? new Date());
+  const timeSlots = useMemo(() => buildTimeSlots(selectedDate), [selectedDate]);
+  const [selectedTime, setSelectedTime] = useState<Date | null>(null);
+  const [bookingNote, setBookingNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const stepAnim = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -122,14 +146,27 @@ export default function Diagnose() {
     });
   }, [step]);
 
+  useEffect(() => {
+    setSelectedTime(null);
+  }, [selectedDate]);
+
+  // Default to the first address when results arrive
+  useEffect(() => {
+    if (step === 'result' && !selectedAddress) {
+      const def = addressesQuery.data?.find((a) => a.is_default) ?? addressesQuery.data?.[0];
+      if (def?.id) setSelectedAddress(def.id);
+    }
+  }, [step, addressesQuery.data]);
+
   const addressOptions = addressesQuery.data ?? [];
   const hasProblemDescription = problemDescription.trim().length > 0;
   const canAnalyze = Boolean(media || hasProblemDescription) && !recording && !isTranscribing;
+  const canBook = Boolean(selectedAddress && selectedTime && !submitting);
 
   const tips = useMemo(() => [
     { icon: 'videocam', text: 'Record the sound for 10 seconds' },
-    { icon: 'sunny',    text: 'Ensure good lighting' },
-    { icon: 'barcode',  text: 'Photograph the model label' },
+    { icon: 'sunny', text: 'Ensure good lighting' },
+    { icon: 'barcode', text: 'Photograph the model label' },
   ], []);
 
   const handlePick = async () => {
@@ -151,20 +188,18 @@ export default function Diagnose() {
     setStep('processing');
     setError(null);
     try {
-      const response     = await diagnoseImage(
+      const response = await diagnoseImage(
         media?.uri ?? null,
         undefined,
         category ?? undefined,
         problemDescription
       );
-      const parsed       = parseDiagnosis(response);
+      const parsed = parseDiagnosis(response);
       setDiagnosis(parsed);
       setStep('result');
     } catch (err) {
       console.error('Diagnosis failed', err);
-      const message = err instanceof Error
-        ? err.message
-        : 'We could not analyse the media. Please try again.';
+      const message = err instanceof Error ? err.message : 'We could not analyse the media. Please try again.';
       setError(message);
       setStep('capture');
     }
@@ -192,9 +227,7 @@ export default function Diagnose() {
         });
       } catch (err) {
         console.error('Transcription failed', err);
-        const message = err instanceof Error
-          ? err.message
-          : 'We could not transcribe the recording. Please try again.';
+        const message = err instanceof Error ? err.message : 'We could not transcribe the recording. Please try again.';
         setError(message);
       } finally {
         setIsTranscribing(false);
@@ -225,31 +258,74 @@ export default function Diagnose() {
   };
 
   const handleBook = async () => {
-    if (!diagnosis?.success || !profile?.id || !selectedAddress) return;
-    const job = await createJob({
-      customer_id:       profile.id,
-      status:            'searching',
-      ai_diagnosis:      diagnosis.data.fault_name,
-      ai_confidence:     diagnosis.data.confidence,
-      ai_raw_response:   {
-        ...diagnosis.data,
-        customer_description: problemDescription.trim() || null,
-      },
-      est_cost_min:      diagnosis.data.est_cost_min,
-      est_cost_max:      diagnosis.data.est_cost_max,
-      address_id:        selectedAddress,
-    });
-    router.replace({ pathname: '/(customer)/matching', params: { jobId: job.id } });
+    if (!diagnosis?.success || !profile?.id || !selectedAddress || !selectedTime) {
+      Alert.alert('Almost there', 'Pick a date, time slot, and address to confirm.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const addressRow = addressOptions.find((address) => address.id === selectedAddress) ?? null;
+      let jobLocation = addressRow?.location ?? null;
+
+      if (!jobLocation && addressRow?.address_text) {
+        const coords = await geocodeAddress(addressRow.address_text);
+        jobLocation = toGeoJSONPoint(coords);
+        await supabase
+          .from('customer_addresses')
+          .update({ location: jobLocation })
+          .eq('id', addressRow.id);
+      }
+
+      if (!jobLocation) {
+        Alert.alert('Address missing location', 'Please edit your address to add a valid location.');
+        return;
+      }
+
+      const job = await createJob({
+        customer_id: profile.id,
+        status: 'searching',
+        ai_diagnosis: diagnosis.data.fault_name,
+        ai_confidence: diagnosis.data.confidence,
+        ai_raw_response: {
+          ...diagnosis.data,
+          customer_description: problemDescription.trim() || null,
+          scheduling: {
+            scheduled_at: selectedTime.toISOString(),
+            note: bookingNote.trim() || null,
+            booked_at: new Date().toISOString(),
+          },
+        },
+        est_cost_min: diagnosis.data.est_cost_min,
+        est_cost_max: diagnosis.data.est_cost_max,
+        address_id: selectedAddress,
+        job_location: jobLocation,
+      });
+      await createNotification({
+        userId: profile.id,
+        title: 'Booking confirmed',
+        body: `Your repair is booked for ${selectedTime.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}. We'll notify you when a Pro accepts.`,
+        jobId: job.id,
+        deepLink: `/(customer)/receipt/${job.id}`,
+      });
+      router.replace({ pathname: '/(customer)/receipt/[id]', params: { id: job.id, justBooked: '1' } });
+    } catch (err) {
+      console.error('Booking failed', err);
+      Alert.alert('Could not confirm booking', 'Please try again in a moment.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const stepLabels = ['Capture', 'Analyse', 'Book'];
-  const stepIndex  = step === 'capture' ? 0 : step === 'processing' ? 1 : 2;
+  const stepIndex = step === 'capture' ? 0 : step === 'processing' ? 1 : 2;
 
   const handleBack = () => {
     if (step === 'result' || step === 'processing') {
       setStep('capture');
       setDiagnosis(null);
       setSelectedAddress(null);
+      setSelectedTime(null);
+      setBookingNote('');
       setError(null);
       return;
     }
@@ -269,18 +345,11 @@ export default function Diagnose() {
 
         {/* Header */}
         <Animated.View style={{ opacity: headerAnim }}>
-          <LinearGradient
-            colors={[Theme.navy, Theme.navyMid]}
-            style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 36 }}
-          >
+          <LinearGradient colors={[Theme.navy, Theme.navyMid]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 36 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 }}>
               <Pressable
                 onPress={handleBack}
-                style={{
-                  width: 38, height: 38, borderRadius: 19,
-                  backgroundColor: 'rgba(255,255,255,0.12)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}
+                style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Ionicons name="arrow-back" size={20} color={Theme.white} />
               </Pressable>
@@ -309,10 +378,7 @@ export default function Diagnose() {
                         : <Text style={{ fontSize: 12, fontWeight: '800', color: i === stepIndex ? Theme.navy : 'rgba(255,255,255,0.5)' }}>{i + 1}</Text>
                       }
                     </View>
-                    <Text style={{
-                      fontSize: 10, fontWeight: '700',
-                      color: i <= stepIndex ? Theme.amber : 'rgba(255,255,255,0.4)',
-                    }}>{label}</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: i <= stepIndex ? Theme.amber : 'rgba(255,255,255,0.4)' }}>{label}</Text>
                   </View>
                   {i < 2 && (
                     <View style={{
@@ -334,27 +400,18 @@ export default function Diagnose() {
             {step === 'capture' ? (
               <View style={{ gap: 14 }}>
                 {error ? (
-                  <View style={{
-                    backgroundColor: Theme.errorLight, borderRadius: 14, padding: 14,
-                    flexDirection: 'row', gap: 10, alignItems: 'center',
-                    borderWidth: 1, borderColor: Theme.error + '30',
-                  }}>
+                  <View style={{ backgroundColor: Theme.errorLight, borderRadius: 14, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'center', borderWidth: 1, borderColor: Theme.error + '30' }}>
                     <Ionicons name="alert-circle" size={18} color={Theme.error} />
                     <Text style={{ color: Theme.error, flex: 1, fontSize: 13 }}>{error}</Text>
                   </View>
                 ) : null}
 
-                <View style={{
-                  backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16,
-                  shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
-                }}>
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
                   <Pressable
                     onPress={handlePick}
                     style={{
                       borderWidth: 2, borderStyle: 'dashed', borderColor: Theme.navy + '40',
-                      borderRadius: 16, padding: 24,
-                      alignItems: 'center', justifyContent: 'center', gap: 14,
+                      borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 14,
                       backgroundColor: Theme.navy + '04', minHeight: 180,
                     }}
                   >
@@ -365,11 +422,7 @@ export default function Diagnose() {
                       </>
                     ) : (
                       <>
-                        <View style={{
-                          width: 64, height: 64, borderRadius: 32,
-                          backgroundColor: Theme.navy + '12',
-                          alignItems: 'center', justifyContent: 'center',
-                        }}>
+                        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Theme.navy + '12', alignItems: 'center', justifyContent: 'center' }}>
                           <Ionicons name="camera" size={30} color={Theme.navy} />
                         </View>
                         <Text style={{ color: Theme.textDark, fontWeight: '700', fontSize: 15 }}>
@@ -383,12 +436,7 @@ export default function Diagnose() {
                   </Pressable>
                 </View>
 
-                <View style={{
-                  backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16,
-                  borderWidth: 1, borderColor: Theme.border,
-                  shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
-                }}>
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: Theme.border, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <View style={{ flex: 1, paddingRight: 12 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>
@@ -401,20 +449,12 @@ export default function Diagnose() {
                     <Pressable
                       onPress={handleToggleRecording}
                       disabled={isTranscribing}
-                      style={{
-                        width: 44, height: 44, borderRadius: 22,
-                        backgroundColor: recording ? Theme.error : Theme.blueLight,
-                        alignItems: 'center', justifyContent: 'center',
-                      }}
+                      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: recording ? Theme.error : Theme.blueLight, alignItems: 'center', justifyContent: 'center' }}
                     >
                       {isTranscribing ? (
                         <ActivityIndicator color={Theme.blue} />
                       ) : (
-                        <Ionicons
-                          name={recording ? 'stop' : 'mic'}
-                          size={20}
-                          color={recording ? Theme.white : Theme.blue}
-                        />
+                        <Ionicons name={recording ? 'stop' : 'mic'} size={20} color={recording ? Theme.white : Theme.blue} />
                       )}
                     </Pressable>
                   </View>
@@ -427,24 +467,13 @@ export default function Diagnose() {
                     placeholder="Example: AC is running but not cooling, and I hear a clicking sound near the outdoor unit."
                     placeholderTextColor={Theme.textLight}
                     style={{
-                      minHeight: 110,
-                      borderRadius: 14,
-                      borderWidth: 1,
+                      minHeight: 110, borderRadius: 14, borderWidth: 1,
                       borderColor: recording ? Theme.error + '55' : Theme.border,
-                      backgroundColor: Theme.cream,
-                      padding: 14,
-                      color: Theme.textDark,
-                      fontSize: 14,
-                      lineHeight: 20,
+                      backgroundColor: Theme.cream, padding: 14, color: Theme.textDark, fontSize: 14, lineHeight: 20,
                     }}
                   />
 
-                  <Text style={{
-                    color: recording ? Theme.error : Theme.textLight,
-                    fontSize: 12,
-                    marginTop: 10,
-                    fontWeight: recording ? '700' : '500',
-                  }}>
+                  <Text style={{ color: recording ? Theme.error : Theme.textLight, fontSize: 12, marginTop: 10, fontWeight: recording ? '700' : '500' }}>
                     {recording
                       ? 'Recording... tap stop when finished.'
                       : isTranscribing
@@ -453,20 +482,13 @@ export default function Diagnose() {
                   </Text>
                 </View>
 
-                <View style={{
-                  backgroundColor: Theme.creamCard, borderRadius: 16, padding: 16,
-                  borderWidth: 1, borderColor: Theme.border,
-                }}>
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Theme.border }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: Theme.textDark, marginBottom: 10 }}>
                     Tips for best results
                   </Text>
                   {tips.map((tip) => (
                     <View key={tip.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <View style={{
-                        width: 28, height: 28, borderRadius: 8,
-                        backgroundColor: Theme.navy + '10',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name={tip.icon as any} size={14} color={Theme.navy} />
                       </View>
                       <Text style={{ color: Theme.textMid, fontSize: 13, flex: 1 }}>{tip.text}</Text>
@@ -474,49 +496,32 @@ export default function Diagnose() {
                   ))}
                 </View>
 
-                <Pressable
+                <Button
                   onPress={handleAnalyze}
                   disabled={!canAnalyze}
-                  style={{
-                    backgroundColor: canAnalyze ? Theme.amber : Theme.border,
-                    borderRadius: 16, paddingVertical: 16,
-                    alignItems: 'center',
-                    flexDirection: 'row', justifyContent: 'center', gap: 8,
-                  }}
+                  leftIcon={<Ionicons name="hardware-chip" size={20} color={canAnalyze ? Theme.navy : Theme.textLight} />}
                 >
-                  <Ionicons name="hardware-chip" size={20} color={canAnalyze ? Theme.navy : Theme.textLight} />
-                  <Text style={{ color: canAnalyze ? Theme.navy : Theme.textLight, fontWeight: '800', fontSize: 15 }}>
-                    Analyse with AI
-                  </Text>
-                </Pressable>
+                  Analyse with AI
+                </Button>
 
-                {/* VISIBLE CHANGE MEDIA BUTTON */}
                 {media ? (
-                  <Pressable
+                  <Button
+                    variant="secondary"
                     onPress={() => {
                       setMedia(null);
                       setError(null);
                     }}
-                    style={{
-                      backgroundColor: Theme.creamCard,
-                      borderWidth: 1, borderColor: Theme.border,
-                      borderRadius: 16, paddingVertical: 16,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}
                   >
-                    <Text style={{ color: Theme.textMid, fontWeight: '700', fontSize: 15 }}>
-                      Change Media
-                    </Text>
-                  </Pressable>
+                    Change Media
+                  </Button>
                 ) : null}
-
               </View>
             ) : null}
 
             {/* PROCESSING STEP */}
             {step === 'processing' ? <ProcessingAnimation /> : null}
 
-            {/* RESULT STEP */}
+            {/* RESULT + BOOKING STEP */}
             {step === 'result' && diagnosis?.success ? (
               <View style={{ gap: 14 }}>
                 <DiagnosisCard
@@ -529,60 +534,153 @@ export default function Diagnose() {
                   urgency={diagnosis.data.urgency}
                 />
 
-                <View style={{
-                  backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16,
-                  shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
-                }}>
-                  <Text style={{ fontWeight: '700', color: Theme.textDark, marginBottom: 12 }}>
-                    Where is this appliance?
-                  </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                    {addressOptions.map((address) => (
+                {/* Address picker */}
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Ionicons name="location-outline" size={16} color={Theme.navy} />
+                    <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Service address</Text>
+                  </View>
+
+                  {addressOptions.length === 0 ? (
+                    <View style={{ paddingVertical: 8 }}>
+                      <Text style={{ color: Theme.textMid, fontSize: 13, marginBottom: 10 }}>
+                        Add an address so the Pro knows where to come.
+                      </Text>
+                      <Button variant="secondary" size="sm" onPress={() => router.push('/(customer)/addresses')}>
+                        Add address
+                      </Button>
+                    </View>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                      {addressOptions.map((address) => {
+                        const isSelected = selectedAddress === address.id;
+                        return (
+                          <Pressable
+                            key={address.id}
+                            onPress={() => setSelectedAddress(address.id)}
+                            style={{
+                              paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5,
+                              borderColor: isSelected ? Theme.navy : Theme.border,
+                              backgroundColor: isSelected ? Theme.navy + '10' : Theme.cream,
+                            }}
+                          >
+                            <Text style={{ color: isSelected ? Theme.navy : Theme.textMid, fontWeight: isSelected ? '700' : '500', fontSize: 13 }}>
+                              {address.label ?? 'Address'}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                       <Pressable
-                        key={address.id}
-                        onPress={() => setSelectedAddress(address.id)}
-                        style={{
-                          paddingHorizontal: 16, paddingVertical: 10,
-                          borderRadius: 12, borderWidth: 1.5,
-                          borderColor: selectedAddress === address.id ? Theme.navy : Theme.border,
-                          backgroundColor: selectedAddress === address.id ? Theme.navy + '10' : Theme.cream,
-                        }}
+                        onPress={() => router.push('/(customer)/addresses')}
+                        style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: Theme.border, borderStyle: 'dashed' }}
                       >
-                        <Text style={{
-                          color: selectedAddress === address.id ? Theme.navy : Theme.textMid,
-                          fontWeight: selectedAddress === address.id ? '700' : '500', fontSize: 13,
-                        }}>
-                          {address.label ?? 'Address'}
-                        </Text>
+                        <Text style={{ color: Theme.textMid, fontWeight: '500', fontSize: 13 }}>+ Add new</Text>
                       </Pressable>
-                    ))}
-                    <Pressable style={{
-                      paddingHorizontal: 16, paddingVertical: 10,
-                      borderRadius: 12, borderWidth: 1.5,
-                      borderColor: Theme.border, borderStyle: 'dashed',
-                    }}>
-                      <Text style={{ color: Theme.textMid, fontWeight: '500', fontSize: 13 }}>+ Add new</Text>
-                    </Pressable>
+                    </ScrollView>
+                  )}
+                </View>
+
+                {/* Date picker */}
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Ionicons name="calendar-outline" size={16} color={Theme.navy} />
+                    <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a day</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {dates.map((opt) => {
+                      const isSelected = opt.date.toDateString() === selectedDate.toDateString();
+                      return (
+                        <Pressable
+                          key={opt.date.toISOString()}
+                          onPress={() => setSelectedDate(opt.date)}
+                          style={{
+                            paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14,
+                            backgroundColor: isSelected ? Theme.navy : Theme.cream,
+                            borderWidth: 1.5, borderColor: isSelected ? Theme.navy : Theme.border,
+                            alignItems: 'center', minWidth: 74,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isSelected ? Theme.amber : Theme.textMid, letterSpacing: 0.5 }}>
+                            {opt.label.toUpperCase()}
+                          </Text>
+                          <Text style={{ fontSize: 13, fontWeight: '800', color: isSelected ? Theme.white : Theme.textDark, marginTop: 4 }}>
+                            {opt.sublabel}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </ScrollView>
                 </View>
 
-                <Pressable
-                  onPress={handleBook}
-                  disabled={!selectedAddress}
-                  style={{
-                    backgroundColor: selectedAddress ? Theme.amber : Theme.border,
-                    borderRadius: 16, paddingVertical: 16,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{
-                    color: selectedAddress ? Theme.navy : Theme.textLight,
-                    fontWeight: '800', fontSize: 15,
-                  }}>
-                    Book a Pro — Free to match ✓
+                {/* Time picker */}
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Ionicons name="time-outline" size={16} color={Theme.navy} />
+                    <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a time</Text>
+                  </View>
+                  {timeSlots.length === 0 ? (
+                    <Text style={{ color: Theme.textMid, fontSize: 13 }}>
+                      No more slots available today. Pick another date above.
+                    </Text>
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {timeSlots.map((slot) => {
+                        const isSelected = selectedTime?.getTime() === slot.date.getTime();
+                        return (
+                          <Pressable
+                            key={slot.date.toISOString()}
+                            onPress={() => setSelectedTime(slot.date)}
+                            style={{
+                              paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12,
+                              backgroundColor: isSelected ? Theme.amber : Theme.cream,
+                              borderWidth: 1.5, borderColor: isSelected ? Theme.amber : Theme.border,
+                              minWidth: 80, alignItems: 'center',
+                            }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: isSelected ? Theme.navy : Theme.textDark }}>
+                              {slot.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+
+                {/* Note */}
+                <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>
+                    Note for the Pro <Text style={{ color: Theme.textLight, fontWeight: '500' }}>(optional)</Text>
                   </Text>
-                </Pressable>
+                  <TextInput
+                    value={bookingNote}
+                    onChangeText={setBookingNote}
+                    multiline
+                    textAlignVertical="top"
+                    placeholder="e.g. Gate code 1234. Please call when 5 min away."
+                    placeholderTextColor={Theme.textLight}
+                    style={{
+                      marginTop: 10, minHeight: 70, borderRadius: 12, borderWidth: 1, borderColor: Theme.border,
+                      backgroundColor: Theme.cream, padding: 12, color: Theme.textDark, fontSize: 13, lineHeight: 20,
+                    }}
+                  />
+                </View>
+
+                {/* Info banner */}
+                <View style={{ backgroundColor: Theme.amberLight, borderRadius: 14, padding: 14, flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: Theme.amber + '40' }}>
+                  <Ionicons name="information-circle" size={20} color={Theme.amber} />
+                  <Text style={{ color: Theme.textDark, fontSize: 13, flex: 1, lineHeight: 18 }}>
+                    A nearby pro will review your slot. They may accept or propose another time — you'll get a notification either way.
+                  </Text>
+                </View>
+
+                <Button onPress={handleBook} loading={submitting} disabled={!canBook}>
+                  {!selectedAddress
+                    ? 'Add a service address'
+                    : !selectedTime
+                      ? 'Select a time slot'
+                      : 'Confirm booking'}
+                </Button>
               </View>
             ) : null}
 

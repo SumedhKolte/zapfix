@@ -3,22 +3,22 @@ import { ScrollView, Text, View, Pressable, Animated, Alert } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { Button } from '@/components/ui/Button';
 
 function AnimatedRow({ children, delay = 0 }: any) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(-12)).current;
-
   useEffect(() => {
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
       Animated.spring(translateX, { toValue: 0, tension: 90, friction: 10, delay, useNativeDriver: true }),
     ]).start();
   }, []);
-
   return (
     <Animated.View style={{ opacity, transform: [{ translateX }] }}>
       {children}
@@ -28,7 +28,6 @@ function AnimatedRow({ children, delay = 0 }: any) {
 
 function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = false }: any) {
   const scale = useRef(new Animated.Value(1)).current;
-
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
@@ -36,26 +35,14 @@ function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = 
         onPressIn={() => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 20,
-          paddingVertical: 14,
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: 20, paddingVertical: 14,
           backgroundColor: danger ? '#FFF0F0' : Colors.white,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          borderBottomWidth: 1, borderBottomColor: Colors.border,
           gap: 14,
         }}
       >
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            backgroundColor: danger ? '#C23232' + '20' : Colors.navy.primary + '10',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: danger ? '#C23232' + '20' : Colors.navy.primary + '10', alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name={icon} size={18} color={danger ? '#C23232' : Colors.navy.primary} />
         </View>
         <View style={{ flex: 1 }}>
@@ -67,11 +54,7 @@ function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = 
           ) : null}
         </View>
         {chevron ? (
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={danger ? '#C23232' + '80' : Colors.midGray}
-          />
+          <Ionicons name="chevron-forward" size={16} color={danger ? '#C23232' + '80' : Colors.midGray} />
         ) : null}
       </Pressable>
     </Animated.View>
@@ -80,17 +63,7 @@ function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = 
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text
-      style={{
-        fontSize: 11,
-        fontWeight: '700',
-        color: Colors.text.secondary,
-        letterSpacing: 1.2,
-        paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 6,
-      }}
-    >
+    <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.text.secondary, letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6 }}>
       {title.toUpperCase()}
     </Text>
   );
@@ -98,22 +71,14 @@ function SectionHeader({ title }: { title: string }) {
 
 function Card({ children, style }: any) {
   return (
-    <View
-      style={{
-        backgroundColor: Colors.white,
-        borderRadius: 18,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: Colors.border,
-        ...style,
-      }}
-    >
+    <View style={{ backgroundColor: Colors.white, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, ...style }}>
       {children}
     </View>
   );
 }
 
 export default function ProProfile() {
+  const router = useRouter();
   const { profile, signOut } = useAuth();
   const { proDetailsQuery } = useProfile(profile?.id ?? '');
   const [signingOut, setSigningOut] = useState(false);
@@ -154,48 +119,19 @@ export default function ProProfile() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header */}
         <Animated.View style={{ opacity: headerAnim }}>
-          <LinearGradient
-            colors={[Colors.navy.primary, Colors.navy.light]}
-            style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 44 }}
-          >
-            <Text
-              style={{
-                color: 'rgba(255,255,255,0.5)',
-                fontSize: 11,
-                fontWeight: '700',
-                letterSpacing: 1.4,
-              }}
-            >
-              PROFESSIONAL ACCOUNT
-            </Text>
-            <Text style={{ color: Colors.white, fontSize: 22, fontWeight: '800', marginTop: 3 }}>
-              Profile
-            </Text>
+          <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 44 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>PROFESSIONAL ACCOUNT</Text>
+            <Text style={{ color: Colors.white, fontSize: 22, fontWeight: '800', marginTop: 3 }}>Profile</Text>
           </LinearGradient>
         </Animated.View>
 
         <View style={{ marginTop: -28, paddingHorizontal: 20 }}>
-          {/* Profile Card */}
           <AnimatedRow delay={60}>
             <Card style={{ marginBottom: 0 }}>
               <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 62,
-                    height: 62,
-                    borderRadius: 31,
-                    backgroundColor: Colors.navy.primary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 3,
-                    borderColor: Colors.amber.primary,
-                  }}
-                >
-                  <Text style={{ color: Colors.amber.primary, fontSize: 22, fontWeight: '800' }}>
-                    {initials}
-                  </Text>
+                <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.amber.primary }}>
+                  <Text style={{ color: Colors.amber.primary, fontSize: 22, fontWeight: '800' }}>{initials}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.text.primary }}>
@@ -204,18 +140,21 @@ export default function ProProfile() {
                   <Text style={{ color: Colors.text.secondary, fontSize: 13, marginTop: 2 }}>
                     {profile?.phone_number ?? '+91 XXXXX XXXXX'}
                   </Text>
+                  {proDetailsQuery.data?.service_radius_km ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: Colors.amber.primary + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                      <Ionicons name="navigate" size={11} color={Colors.amber.dark} />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.navy.primary }}>
+                        {proDetailsQuery.data.service_radius_km} km radius
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Pressable
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: Colors.navy.primary + '10',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  style={{ height: 40, paddingHorizontal: 14, borderRadius: 14, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderWidth: 1.5, borderColor: Colors.amber.primary + '80' }}
+                  onPress={() => router.push('/(pro)/edit-profile')}
                 >
-                  <Ionicons name="pencil" size={16} color={Colors.navy.primary} />
+                  <Ionicons name="pencil" size={14} color={Colors.white} />
+                  <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>Edit</Text>
                 </Pressable>
               </View>
             </Card>
@@ -229,38 +168,47 @@ export default function ProProfile() {
               icon="shield-checkmark"
               label="KYC Status"
               sublabel={kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)}
-              onPress={() => {}}
+              onPress={() => router.push('/(pro)/onboarding/identity')}
             />
             <SettingsRow
               icon="star"
               label="Skill Score"
               sublabel={`${proDetailsQuery.data?.ai_skill_score ?? 0} / 100`}
-              onPress={() => {}}
+              onPress={() => router.push('/(pro)/onboarding/skills')}
             />
             <SettingsRow
               icon="hammer"
               label="Retake Interview"
               sublabel="Update your skills assessment"
-              onPress={() => {}}
+              onPress={() => router.push('/(pro)/onboarding/interview')}
             />
+          </Card>
+        </AnimatedRow>
+
+        <AnimatedRow delay={150}>
+          <SectionHeader title="Onboarding" />
+          <Card style={{ marginHorizontal: 20 }}>
+            <SettingsRow icon="id-card" label="Identity Verification" sublabel="Aadhaar · Selfie" onPress={() => router.push('/(pro)/onboarding/identity')} />
+            <SettingsRow icon="construct" label="Skills" sublabel="Trades · Services" onPress={() => router.push('/(pro)/onboarding/skills')} />
+            <SettingsRow icon="chatbubbles" label="Interview" sublabel="Quick assessment" onPress={() => router.push('/(pro)/onboarding/interview')} />
+            <SettingsRow icon="briefcase" label="Toolkit" sublabel="Required tools" onPress={() => router.push('/(pro)/onboarding/toolkit')} />
+            <SettingsRow icon="cube" label="Inventory Setup" sublabel="Starter parts" onPress={() => router.push('/(pro)/onboarding/inventory')} />
           </Card>
         </AnimatedRow>
 
         <AnimatedRow delay={180}>
           <SectionHeader title="Account" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow
-              icon="notifications"
-              label="Notifications"
-              sublabel="Push notifications · Reminders"
-              onPress={() => {}}
-            />
-            <SettingsRow
-              icon="shield-checkmark"
-              label="Login & Security"
-              sublabel="Password · Two-factor auth"
-              onPress={() => {}}
-            />
+            <SettingsRow icon="notifications" label="Notifications" sublabel="Job alerts · Reminders" onPress={() => router.push('/(pro)/notifications')} />
+            <SettingsRow icon="shield-checkmark" label="Login & Security" sublabel="Phone · Bank account" onPress={() => router.push('/(pro)/login-security')} />
+          </Card>
+        </AnimatedRow>
+
+        <AnimatedRow delay={210}>
+          <SectionHeader title="Preferences" />
+          <Card style={{ marginHorizontal: 20 }}>
+            <SettingsRow icon="contrast" label="Appearance" sublabel="Light · Dark · System" onPress={() => router.push('/(pro)/appearance')} />
+            <SettingsRow icon="language" label="Language" sublabel="English" onPress={() => router.push('/(pro)/language')} />
           </Card>
         </AnimatedRow>
 
@@ -271,46 +219,29 @@ export default function ProProfile() {
               icon="chatbubble-ellipses"
               label="Feedback"
               sublabel="Share your thoughts"
-              onPress={() => {}}
+              onPress={() => Alert.alert('Feedback', 'Email us at pros@zapfix.in — we read every message.')}
             />
             <SettingsRow
               icon="help-circle"
               label="Help & Support"
               sublabel="FAQs · Contact us"
-              onPress={() => {}}
+              onPress={() => Alert.alert('Help & Support', 'Pro support is available Mon–Sat, 9am–8pm IST.\n\nEmail: pros@zapfix.in')}
             />
+            <SettingsRow icon="document-text" label="Legal" sublabel="Service agreement · Privacy" onPress={() => router.push('/(pro)/legal')} />
             <SettingsRow
-              icon="document-text"
-              label="Legal"
-              sublabel="Privacy · Terms of service"
-              onPress={() => {}}
+              icon="information-circle"
+              label="About Zapfix"
+              sublabel="Version 1.0.0"
+              onPress={() => Alert.alert('Zapfix', "Version 1.0.0\n\nIndia's smartest home repair platform powered by AI.\n\n© 2025 Zapfix Technologies")}
             />
           </Card>
         </AnimatedRow>
 
         <AnimatedRow delay={300}>
           <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
-            <Pressable
-              onPress={handleSignOut}
-              disabled={signingOut}
-              style={{
-                backgroundColor: '#C23232' + '10',
-                borderRadius: 16,
-                paddingVertical: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                borderWidth: 1.5,
-                borderColor: '#C23232' + '30',
-                opacity: signingOut ? 0.6 : 1,
-              }}
-            >
-              <Ionicons name="log-out-outline" size={20} color="#C23232" />
-              <Text style={{ color: '#C23232', fontWeight: '700', fontSize: 15 }}>
-                {signingOut ? 'Signing out...' : 'Sign Out'}
-              </Text>
-            </Pressable>
+            <Button variant="danger" onPress={handleSignOut} loading={signingOut} disabled={signingOut} leftIcon={<Ionicons name="log-out-outline" size={20} color={Colors.white} />}>
+              {signingOut ? 'Signing out...' : 'Sign Out'}
+            </Button>
           </View>
         </AnimatedRow>
       </ScrollView>

@@ -31,3 +31,17 @@ export const getJobsForPro = async (proId: string) => {
   }
   return data;
 };
+
+// Jobs that are awaiting a pro to claim them.
+export const getOpenJobRequests = async () => {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .is('pro_id', null)
+    .eq('status', 'searching')
+    .order('created_at', { ascending: false });
+  if (error) {
+    throw error;
+  }
+  return data;
+};

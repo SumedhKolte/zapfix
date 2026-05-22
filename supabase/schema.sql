@@ -476,6 +476,26 @@ CREATE POLICY "earnings: read own" ON earnings
 CREATE POLICY "reviews: insert own" ON reviews
   FOR INSERT WITH CHECK (auth.uid() = reviewer_id);
 
+-- ============================================================
+-- RPC Functions
+-- ============================================================
+
+-- update_pro_location: Updates pro's current location from GeoJSON
+CREATE OR REPLACE FUNCTION update_pro_location(
+  p_pro_id UUID,
+  p_location_geojson JSONB
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE pro_details
+  SET current_location = ST_GeomFromGeoJSON(p_location_geojson)
+  WHERE pro_id = p_pro_id;
+END;
+$$;
+
 CREATE POLICY "reviews: read" ON reviews
   USING (auth.uid() = reviewer_id OR auth.uid() = reviewee_id);
 

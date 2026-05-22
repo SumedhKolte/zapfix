@@ -50,3 +50,24 @@ export const subscribeToNewJobRequest = (
     supabase.removeChannel(channel);
   };
 };
+
+// Listens for any new or updated job that's currently looking for a pro.
+export const subscribeToOpenJobRequests = (onChange: (payload: unknown) => void) => {
+  const channel = supabase
+    .channel('open-job-requests')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'jobs', filter: 'status=eq.searching' },
+      (payload) => onChange(payload)
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'jobs', filter: 'status=eq.searching' },
+      (payload) => onChange(payload)
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};

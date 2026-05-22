@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { TablesInsert, TablesUpdate } from '@/types/database';
+import type { Json, TablesInsert, TablesUpdate } from '@/types/database';
 
 export const createJob = async (payload: TablesInsert<'jobs'>) => {
   const { data, error } = await supabase.from('jobs').insert(payload).select('*').single();
@@ -37,4 +37,108 @@ export const submitDiagnosisFeedback = async (jobId: string, feedback: boolean) 
     throw error;
   }
   return data;
+};
+
+const mergeRawResponse = (existing: Json | null | undefined, patch: Record<string, unknown>): Json => {
+  const base = (existing && typeof existing === 'object' && !Array.isArray(existing)) ? existing : {};
+  return { ...(base as Record<string, Json | undefined>), ...patch } as Json;
+};
+
+const fetchJob = async (jobId: string) => {
+  const { data, error } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+  if (error) throw error;
+  return data;
+};
+
+// Customer schedules a slot for the booking. Persists in ai_raw_response.scheduling.
+export const scheduleJob = async (jobId: string, scheduledAt: string, note?: string) => {
+  const current = await fetchJob(jobId);
+  const next = mergeRawResponse(current.ai_raw_response, {
+    scheduling: { scheduled_at: scheduledAt, note: note ?? null, booked_at: new Date().toISOString() },
+  });
+  return updateJobStatus(jobId, { status: 'searching', ai_raw_response: next });
+};
+
+// Pro accepts a job request directly (no time change).
+export const proAcceptJob = async (jobId: string, proId: string) => {
+  const current = await fetchJob(jobId);
+  const next = mergeRawResponse(current.ai_raw_response, {
+    counter_offer: null,
+  });
+  return updateJobStatus(jobId, {
+    pro_id: proId,
+    status: 'matched',
+    matched_at: new Date().toISOString(),
+    ai_raw_response: next,
+  });
+};
+
+// Pro declines a job (frees it for another pro). We just leave it open.
+export const proDeclineJob = async (jobId: string, proId: string) => {
+  const current = await fetchJob(jobId);
+  const declines = ((current.ai_raw_response as any)?.declines ?? []) as string[];
+  const next = mergeRawResponse(current.ai_raw_response, {
+    declines: Array.from(new Set([...declines, proId])),
+  });
+  return updateJobStatus(jobId, { ai_raw_response: next });
+};
+
+// Pro proposes an alternative time. Customer must accept.
+export const proProposeAltTime = async (jobId: string, proId: string, proposedAt: string, message?: string) => {
+  const current = await fetchJob(jobId);
+  const next = mergeRawResponse(current.ai_raw_response, {
+    counter_offer: {
+      pro_id: proId,
+      proposed_at: proposedAt,
+      message: message ?? null,
+      created_at: new Date().toISOString(),
+    },
+  });
+  return updateJobStatus(jobId, { pro_id: proId, ai_raw_response: next });
+};
+
+// Customer accepts the pro's counter-offer.
+export const acceptCounterOffer = async (jobId: string) => {
+  const current = await fetchJob(jobId);
+  const counter = (current.ai_raw_response as any)?.counter_offer;
+  if (!counter) {
+    throw new Error('No counter-offer to accept.');
+  }
+  const next = mergeRawResponse(current.ai_raw_response, {
+    scheduling: { ...(current.ai_raw_response as any)?.scheduling, scheduled_at: counter.proposed_at, rescheduled: true },
+    counter_offer: { ...counter, accepted_at: new Date().toISOString() },
+  });
+  return updateJobStatus(jobId, {
+    status: 'matched',
+    matched_at: new Date().toISOString(),
+    ai_raw_response: next,
+  });
+};
+
+// Customer declines the pro's counter-offer.
+export const declineCounterOffer = async (jobId: string) => {
+  const current = await fetchJob(jobId);
+  const counter = (current.ai_raw_response as any)?.counter_offer;
+  const next = mergeRawResponse(current.ai_raw_response, {
+    counter_offer: counter ? { ...counter, declined_at: new Date().toISOString() } : null,
+  });
+  // Free up the job for re-matching.
+  return updateJobStatus(jobId, {
+    pro_id: null,
+    ai_raw_response: { ...(next as object), counter_offer: null } as Json,
+  });
+};
+
+// Pro marks themselves on the way.
+export const proStartTransit = async (jobId: string) => {
+  return updateJobStatus(jobId, { status: 'in_transit' });
+};
+
+export const proMarkArrived = async (jobId: string) => {
+  return updateJobStatus(jobId, { status: 'arrived', arrived_at: new Date().toISOString() });
+};
+
+// Customer cancels a job.
+export const cancelJob = async (jobId: string) => {
+  return updateJobStatus(jobId, { status: 'cancelled', cancelled_at: new Date().toISOString() });
 };
