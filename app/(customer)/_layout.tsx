@@ -130,6 +130,7 @@ function CenterTabButton({ onPress, accessibilityState }: any) {
 export default function CustomerLayout() {
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Theme.navy,

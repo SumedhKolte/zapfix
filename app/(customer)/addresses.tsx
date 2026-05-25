@@ -102,7 +102,10 @@ export default function Addresses() {
     setSaving(true);
     setError(null);
     try {
-      const coords = await geocodeAddress(trimmed);
+      const coords = await geocodeAddress({
+        label: label.trim(),
+        address_text: trimmed,
+      });
       const location = toGeoJSONPoint(coords);
 
       if (editingId) {

@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
 import { useJob } from '@/hooks/useJob';
 import { createNotification } from '@/services/notifications';
-import { geocodeAddress, toGeoJSONPoint } from '@/utils/geo';
+import { geocodeAddress, normalizeGeoPoint, toGeoJSONPoint } from '@/utils/geo';
 
 const Theme = {
   navy: '#0F2057',
@@ -35,9 +35,13 @@ const Theme = {
   white: '#FFFFFF',
   error: '#C23232',
   errorLight: '#FFF0F0',
+  success: '#1A7A4A',
 };
 
 type DateOption = { date: Date; label: string; sublabel: string };
+
+const buildServiceAddressQuery = (address: { label?: string | null; address_text?: string | null }) =>
+  [address.label?.trim(), address.address_text?.trim()].filter(Boolean).join(', ');
 
 const buildDateOptions = (): DateOption[] => {
   const today = new Date();
@@ -122,6 +126,8 @@ export default function Diagnose() {
   const [diagnosis, setDiagnosis] = useState<ReturnType<typeof parseDiagnosis> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+  const [resolvedServiceLocation, setResolvedServiceLocation] = useState<ReturnType<typeof toGeoJSONPoint> | null>(null);
+  const [resolvingServiceLocation, setResolvingServiceLocation] = useState(false);
   const [problemDescription, setProblemDescription] = useState('');
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -150,6 +156,66 @@ export default function Diagnose() {
     setSelectedTime(null);
   }, [selectedDate]);
 
+  const addressOptions = addressesQuery.data ?? [];
+  const selectedAddressRow = useMemo(
+    () => addressOptions.find((address) => address.id === selectedAddress) ?? null,
+    [addressOptions, selectedAddress]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveServiceLocation = async () => {
+      if (step !== 'result' || !selectedAddressRow) {
+        setResolvedServiceLocation(null);
+        return;
+      }
+
+      const existingLocation = normalizeGeoPoint(selectedAddressRow.location);
+      if (existingLocation) {
+        setResolvedServiceLocation(toGeoJSONPoint(existingLocation));
+        return;
+      }
+
+      const query = buildServiceAddressQuery(selectedAddressRow);
+      if (!query) {
+        setResolvedServiceLocation(null);
+        return;
+      }
+
+      setResolvingServiceLocation(true);
+      try {
+        const coords = await geocodeAddress({
+          label: selectedAddressRow.label,
+          address_text: selectedAddressRow.address_text,
+        });
+        const location = toGeoJSONPoint(coords);
+
+        if (cancelled) return;
+
+        setResolvedServiceLocation(location);
+        await supabase
+          .from('customer_addresses')
+          .update({ location })
+          .eq('id', selectedAddressRow.id);
+      } catch {
+        if (!cancelled) {
+          setResolvedServiceLocation(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setResolvingServiceLocation(false);
+        }
+      }
+    };
+
+    resolveServiceLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAddressRow, step]);
+
   // Default to the first address when results arrive
   useEffect(() => {
     if (step === 'result' && !selectedAddress) {
@@ -158,7 +224,6 @@ export default function Diagnose() {
     }
   }, [step, addressesQuery.data]);
 
-  const addressOptions = addressesQuery.data ?? [];
   const hasProblemDescription = problemDescription.trim().length > 0;
   const canAnalyze = Boolean(media || hasProblemDescription) && !recording && !isTranscribing;
   const canBook = Boolean(selectedAddress && selectedTime && !submitting);
@@ -257,6 +322,22 @@ export default function Diagnose() {
     }
   };
 
+  const getBookingErrorMessage = (err: unknown) => {
+    if (err instanceof Error) {
+      if (err.message.includes('address')) {
+        return 'Could not find that address. Please enter a more specific location.';
+      }
+      if (err.message.includes('API key')) {
+        return 'Maps is not configured. Please set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.';
+      }
+      if (err.message.includes('Google Maps')) {
+        return 'Could not reach Google Maps. Check your connection and try again.';
+      }
+    }
+
+    return 'Please try again in a moment.';
+  };
+
   const handleBook = async () => {
     if (!diagnosis?.success || !profile?.id || !selectedAddress || !selectedTime) {
       Alert.alert('Almost there', 'Pick a date, time slot, and address to confirm.');
@@ -264,16 +345,21 @@ export default function Diagnose() {
     }
     setSubmitting(true);
     try {
-      const addressRow = addressOptions.find((address) => address.id === selectedAddress) ?? null;
-      let jobLocation = addressRow?.location ?? null;
+      const addressRow = selectedAddressRow;
+      let jobLocation = resolvedServiceLocation ?? normalizeGeoPoint(addressRow?.location);
 
-      if (!jobLocation && addressRow?.address_text) {
-        const coords = await geocodeAddress(addressRow.address_text);
+      if (!jobLocation && addressRow) {
+        const coords = await geocodeAddress({
+          label: addressRow.label,
+          address_text: addressRow.address_text,
+        });
         jobLocation = toGeoJSONPoint(coords);
         await supabase
           .from('customer_addresses')
           .update({ location: jobLocation })
           .eq('id', addressRow.id);
+
+        setResolvedServiceLocation(jobLocation);
       }
 
       if (!jobLocation) {
@@ -310,7 +396,7 @@ export default function Diagnose() {
       router.replace({ pathname: '/(customer)/receipt/[id]', params: { id: job.id, justBooked: '1' } });
     } catch (err) {
       console.error('Booking failed', err);
-      Alert.alert('Could not confirm booking', 'Please try again in a moment.');
+      Alert.alert('Could not confirm booking', getBookingErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -578,6 +664,16 @@ export default function Diagnose() {
                       </Pressable>
                     </ScrollView>
                   )}
+
+                  {resolvingServiceLocation ? (
+                    <Text style={{ marginTop: 10, color: Theme.textLight, fontSize: 12 }}>
+                      Resolving the selected address with Google Maps...
+                    </Text>
+                  ) : selectedAddressRow && resolvedServiceLocation ? (
+                    <Text style={{ marginTop: 10, color: Theme.success, fontSize: 12, fontWeight: '600' }}>
+                      Location resolved from Google Maps.
+                    </Text>
+                  ) : null}
                 </View>
 
                 {/* Date picker */}

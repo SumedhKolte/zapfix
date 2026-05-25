@@ -358,53 +358,12 @@ export default function Welcome() {
       {/* ── Sticky CTA footer ── */}
       <View
         style={{
-          backgroundColor: Theme.white,
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 32,
           paddingHorizontal: 20,
-          paddingTop: 22,
-          paddingBottom: Platform.OS === 'ios' ? 40 : 28,
-          shadowColor: Theme.navy,
-          shadowOpacity: 0.12,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: -8 },
-          elevation: 16,
-          borderTopWidth: 1,
-          borderColor: Theme.border
+          paddingTop: 10,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 16
         }}
       >
-        {/* Trust badge */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            marginBottom: 16
-          }}
-        >
-          <Ionicons name="lock-closed" size={11} color={Theme.textLight} />
-          <Text style={{ fontSize: 11, color: Theme.textLight, letterSpacing: 0.3 }}>
-            Secure · No spam · Cancel anytime
-          </Text>
-        </View>
-
-        {/* Single big CTA */}
-        <Button
-          size="lg"
-          onPress={() => router.push('/(auth)/phone-entry')}
-          leftIcon={<Ionicons name="call" size={22} color={Theme.navy} />}
-          rightIcon={<Ionicons name="arrow-forward" size={22} color={Theme.navy} />}
-          style={{
-            height: 72,
-            borderRadius: 26,
-            shadowColor: Theme.amber,
-            shadowOpacity: 0.5,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 10
-          }}
-        >
+        <Button size="lg" onPress={() => router.push('/(auth)/phone-entry')}>
           Continue with phone
         </Button>
       </View>

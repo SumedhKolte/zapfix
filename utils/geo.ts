@@ -3,6 +3,13 @@ export type GeoPoint = {
   longitude: number;
 };
 
+export type GeoAddressSource =
+  | string
+  | {
+      address_text?: string | null;
+      label?: string | null;
+    };
+
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
@@ -65,27 +72,55 @@ export const distanceKm = (a: GeoPoint, b: GeoPoint) => {
   return 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
 };
 
-export const geocodeAddress = async (address: string): Promise<GeoPoint> => {
+const buildGeocodeCandidates = (source: GeoAddressSource) => {
+  if (typeof source === 'string') {
+    const trimmed = source.trim();
+    return [trimmed, `${trimmed}, India`].filter(Boolean);
+  }
+
+  const label = source.label?.trim() ?? '';
+  const addressText = source.address_text?.trim() ?? '';
+  const combined = [label, addressText].filter(Boolean).join(', ');
+
+  return [
+    combined,
+    addressText,
+    label ? `${label}, India` : '',
+    addressText ? `${addressText}, India` : '',
+    combined ? `${combined}, India` : '',
+  ].filter(Boolean);
+};
+
+export const geocodeAddress = async (source: GeoAddressSource): Promise<GeoPoint> => {
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
     throw new Error('Google Maps API key is missing.');
   }
 
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error('Could not reach Google Maps.');
+  const candidates = buildGeocodeCandidates(source).filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
+
+  for (const candidate of candidates) {
+    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+    url.searchParams.set('address', candidate);
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('region', 'in');
+    url.searchParams.set('components', 'country:IN');
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error('Could not reach Google Maps.');
+    }
+
+    const data = (await response.json()) as {
+      status?: string;
+      results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
+    };
+
+    const location = data.results?.[0]?.geometry?.location;
+    if (data.status === 'OK' && location && isFiniteNumber(location.lat) && isFiniteNumber(location.lng)) {
+      return { latitude: location.lat, longitude: location.lng };
+    }
   }
 
-  const data = (await response.json()) as {
-    status?: string;
-    results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
-  };
-
-  const location = data.results?.[0]?.geometry?.location;
-  if (data.status !== 'OK' || !location || !isFiniteNumber(location.lat) || !isFiniteNumber(location.lng)) {
-    throw new Error('Could not find that address. Please enter a more specific location.');
-  }
-
-  return { latitude: location.lat, longitude: location.lng };
+  throw new Error('Could not find that address. Please enter a more specific location.');
 };
