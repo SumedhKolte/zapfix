@@ -5,7 +5,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Audio } from 'expo-av';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
 
 import { Button } from '@/components/ui/Button';
 import { DiagnosisCard } from '@/components/customer/DiagnosisCard';
@@ -129,8 +135,9 @@ export default function Diagnose() {
   const [resolvedServiceLocation, setResolvedServiceLocation] = useState<ReturnType<typeof toGeoJSONPoint> | null>(null);
   const [resolvingServiceLocation, setResolvingServiceLocation] = useState(false);
   const [problemDescription, setProblemDescription] = useState('');
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
 
   const dates = useMemo(() => buildDateOptions(), []);
   const [selectedDate, setSelectedDate] = useState<Date>(dates[0]?.date ?? new Date());
@@ -225,7 +232,8 @@ export default function Diagnose() {
   }, [step, addressesQuery.data]);
 
   const hasProblemDescription = problemDescription.trim().length > 0;
-  const canAnalyze = Boolean(media || hasProblemDescription) && !recording && !isTranscribing;
+  const isRecording = recorderState.isRecording;
+  const canAnalyze = Boolean(media || hasProblemDescription) && !isRecording && !isTranscribing;
   const canBook = Boolean(selectedAddress && selectedTime && !submitting);
 
   const tips = useMemo(() => [
@@ -271,16 +279,14 @@ export default function Diagnose() {
   };
 
   const handleToggleRecording = async () => {
-    if (recording) {
-      const activeRecording = recording;
-      setRecording(null);
+    if (isRecording) {
       setIsTranscribing(true);
       setError(null);
 
       try {
-        await activeRecording.stopAndUnloadAsync();
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-        const uri = activeRecording.getURI();
+        await audioRecorder.stop();
+        await setAudioModeAsync({ allowsRecording: false });
+        const uri = audioRecorder.uri ?? recorderState.url;
         if (!uri) throw new Error('Recording was not saved. Please try again.');
 
         const transcript = await transcribeAudio(uri);
@@ -301,21 +307,19 @@ export default function Diagnose() {
     }
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted) {
         setError('Microphone permission is required to use speech to text.');
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
-      const { recording: nextRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       setError(null);
-      setRecording(nextRecording);
     } catch (err) {
       console.error('Recording failed', err);
       setError('We could not start recording. Please try again.');
@@ -535,12 +539,12 @@ export default function Diagnose() {
                     <Pressable
                       onPress={handleToggleRecording}
                       disabled={isTranscribing}
-                      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: recording ? Theme.error : Theme.blueLight, alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isRecording ? Theme.error : Theme.blueLight, alignItems: 'center', justifyContent: 'center' }}
                     >
                       {isTranscribing ? (
                         <ActivityIndicator color={Theme.blue} />
                       ) : (
-                        <Ionicons name={recording ? 'stop' : 'mic'} size={20} color={recording ? Theme.white : Theme.blue} />
+                        <Ionicons name={isRecording ? 'stop' : 'mic'} size={20} color={isRecording ? Theme.white : Theme.blue} />
                       )}
                     </Pressable>
                   </View>
@@ -554,13 +558,13 @@ export default function Diagnose() {
                     placeholderTextColor={Theme.textLight}
                     style={{
                       minHeight: 110, borderRadius: 14, borderWidth: 1,
-                      borderColor: recording ? Theme.error + '55' : Theme.border,
+                      borderColor: isRecording ? Theme.error + '55' : Theme.border,
                       backgroundColor: Theme.cream, padding: 14, color: Theme.textDark, fontSize: 14, lineHeight: 20,
                     }}
                   />
 
-                  <Text style={{ color: recording ? Theme.error : Theme.textLight, fontSize: 12, marginTop: 10, fontWeight: recording ? '700' : '500' }}>
-                    {recording
+                  <Text style={{ color: isRecording ? Theme.error : Theme.textLight, fontSize: 12, marginTop: 10, fontWeight: isRecording ? '700' : '500' }}>
+                    {isRecording
                       ? 'Recording... tap stop when finished.'
                       : isTranscribing
                         ? 'Converting speech to text...'

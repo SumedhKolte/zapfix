@@ -21,14 +21,15 @@ module.exports = ({ config }) => ({
   updates: {
     fallbackToCacheTimeout: 0
   },
-  runtimeVersion: {
-    policy: 'appVersion'
-  },
+  runtimeVersion: appVersion,
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.zapfix.app',
+    bundleIdentifier: 'com.Sumedh.zapfix',
     infoPlist: {
+      NSAllowsLocalNetworking: true,
+      NSBonjourServices: ['_expo._tcp'],
+      NSLocalNetworkUsageDescription: 'Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.',
       NSMicrophoneUsageDescription: 'Allow Zapfix to record your problem description for speech to text.'
     }
   },
@@ -56,7 +57,7 @@ module.exports = ({ config }) => ({
     ['expo-image-picker', {
       photosPermission: 'Allow Zapfix to access your photos.'
     }],
-    'expo-av'
+    'expo-audio'
   ],
   extra: {
     appEnv,
