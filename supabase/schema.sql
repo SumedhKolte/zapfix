@@ -109,6 +109,8 @@ CREATE TABLE pro_details (
   service_radius_km      integer          DEFAULT 10,
   decline_count          integer          DEFAULT 0,
   interview_locked_until timestamptz,              -- 48hr cooldown
+  onboarding_step        text             NOT NULL DEFAULT 'identity'
+                                    CHECK (onboarding_step IN ('identity', 'skills', 'interview', 'toolkit', 'inventory', 'complete')),
   kyc_status             kyc_status       NOT NULL DEFAULT 'pending',
   bank_account_ref       text                      -- razorpay payout ref
 );
@@ -575,6 +577,9 @@ CREATE POLICY "pro_skills: delete own" ON pro_skills
 -- pro_inventory: pros can read/update their own
 CREATE POLICY "pro_inventory: own" ON pro_inventory
   USING (auth.uid() = pro_id);
+
+CREATE POLICY "pro_inventory: insert own" ON pro_inventory
+  FOR INSERT WITH CHECK (auth.uid() = pro_id);
 
 CREATE POLICY "pro_inventory: update own" ON pro_inventory
   FOR UPDATE USING (auth.uid() = pro_id) WITH CHECK (auth.uid() = pro_id);

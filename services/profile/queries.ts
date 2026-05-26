@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import type { Tables } from '@/types/database';
+import type { ProOnboardingStep } from './mutations';
+
+export type ProDetails = Tables<'pro_details'> & {
+  onboarding_step?: ProOnboardingStep | null;
+};
 
 export const getProfile = async (userId: string) => {
   const { data, error } = await supabase
@@ -26,7 +31,7 @@ export const getProDetails = async (proId: string) => {
     throw error;
   }
 
-  return data;
+  return data as ProDetails;
 };
 
 export const getCustomerAddresses = async (customerId: string) => {

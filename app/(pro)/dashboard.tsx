@@ -196,54 +196,61 @@ function HeroHeader({
           </Animated.View>
         </View>
 
-        {/* Pills row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20 }}>
-          {/* Skill Score (amber outline) */}
-          <Animated.View
-            style={{
-              opacity: pill1,
-              transform: [{ translateY: pill1.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-            }}
-          >
-            <View
+        {/* Pro stats + availability */}
+        <View style={{ gap: 10, marginTop: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {/* Skill Score */}
+            <Animated.View
               style={{
-                paddingHorizontal: 12, paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1.5,
-                borderColor: Colors.amber.primary,
-                backgroundColor: 'rgba(255, 200, 75, 0.12)',
-                flexDirection: 'row', alignItems: 'center', gap: 6,
+                flex: 1,
+                opacity: pill1,
+                transform: [{ translateY: pill1.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
               }}
             >
-              <Text style={{ color: Colors.amber.primary, fontSize: 12, fontWeight: '700' }}>Skill Score: </Text>
-              <Text style={{ color: Colors.amber.primary, fontSize: 13, fontWeight: '900' }}>{skillScore}</Text>
-            </View>
-          </Animated.View>
+              <View
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  borderColor: Colors.amber.primary,
+                  backgroundColor: 'rgba(255, 200, 75, 0.12)',
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  minHeight: 40,
+                }}
+              >
+                <Ionicons name="star" size={13} color={Colors.amber.primary} />
+                <Text style={{ color: Colors.amber.primary, fontSize: 12, fontWeight: '700' }}>Skill Score</Text>
+                <Text style={{ color: Colors.amber.primary, fontSize: 13, fontWeight: '900' }}>{skillScore}</Text>
+              </View>
+            </Animated.View>
 
-          {/* Jobs Done (navy filled) */}
-          <Animated.View
-            style={{
-              opacity: pill2,
-              transform: [{ translateY: pill2.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
-            }}
-          >
-            <View
+            {/* Jobs Done */}
+            <Animated.View
               style={{
-                paddingHorizontal: 12, paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: Colors.navy.primary,
-                flexDirection: 'row', alignItems: 'center', gap: 4,
+                flex: 1,
+                opacity: pill2,
+                transform: [{ translateY: pill2.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
               }}
             >
-              <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>Jobs Done: </Text>
-              <Text style={{ color: Colors.white, fontSize: 13, fontWeight: '900' }}>
-                {jobsDone >= 320 ? '320+' : jobsDone}
-              </Text>
-            </View>
-          </Animated.View>
-
-          {/* Spacer */}
-          <View style={{ flex: 1 }} />
+              <View
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 8,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(13,27,62,0.68)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.18)',
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  minHeight: 40,
+                }}
+              >
+                <Ionicons name="briefcase" size={13} color={Colors.white} />
+                <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>Jobs Done</Text>
+                <Text style={{ color: Colors.white, fontSize: 13, fontWeight: '900' }}>
+                  {jobsDone >= 320 ? '320+' : jobsDone}
+                </Text>
+              </View>
+            </Animated.View>
+          </View>
 
           {/* Online toggle pill */}
           <Animated.View
@@ -257,11 +264,12 @@ function HeroHeader({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 8,
-                  paddingLeft: 4,
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  paddingLeft: 12,
                   paddingRight: 12,
-                  paddingVertical: 4,
-                  borderRadius: 999,
+                  paddingVertical: 10,
+                  borderRadius: 16,
                   backgroundColor: 'rgba(255,255,255,0.96)',
                   shadowColor: isOnline ? Colors.success : '#000',
                   shadowOffset: { width: 0, height: 4 },
@@ -271,6 +279,34 @@ function HeroHeader({
                   opacity: busy ? 0.7 : 1,
                 }}
               >
+                {/* Label (crossfaded) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: isOnline ? Colors.success + '18' : Colors.lightGray, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={isOnline ? 'flash' : 'moon'} size={14} color={isOnline ? Colors.success : Colors.midGray} />
+                  </View>
+                  <View style={{ position: 'relative', minWidth: 74, alignItems: 'flex-start' }}>
+                    <Animated.Text
+                      style={{
+                        color: Colors.success,
+                        fontSize: 13, fontWeight: '800',
+                        opacity: onlineTextOpacity,
+                      }}
+                    >
+                      Online
+                    </Animated.Text>
+                    <Animated.Text
+                      style={{
+                        position: 'absolute',
+                        color: Colors.midGray,
+                        fontSize: 13, fontWeight: '800',
+                        opacity: offlineTextOpacity,
+                      }}
+                    >
+                      Offline
+                    </Animated.Text>
+                  </View>
+                </View>
+
                 {/* Track */}
                 <View style={{ width: 54, height: 28, justifyContent: 'center' }}>
                   <Animated.View
@@ -304,28 +340,6 @@ function HeroHeader({
                       />
                     ) : null}
                   </Animated.View>
-                </View>
-                {/* Label (crossfaded) */}
-                <View style={{ position: 'relative', minWidth: 52, alignItems: 'flex-start' }}>
-                  <Animated.Text
-                    style={{
-                      color: Colors.success,
-                      fontSize: 13, fontWeight: '800',
-                      opacity: onlineTextOpacity,
-                    }}
-                  >
-                    Online
-                  </Animated.Text>
-                  <Animated.Text
-                    style={{
-                      position: 'absolute',
-                      color: Colors.midGray,
-                      fontSize: 13, fontWeight: '800',
-                      opacity: offlineTextOpacity,
-                    }}
-                  >
-                    Offline
-                  </Animated.Text>
                 </View>
               </View>
             </Pressable>

@@ -1,6 +1,7 @@
 const appEnv = process.env.APP_ENV ?? 'development';
 const isProd = appEnv === 'production';
 const isPreview = appEnv === 'preview';
+const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 const appVersion = '1.0.0';
 
@@ -26,6 +27,9 @@ module.exports = ({ config }) => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.Sumedh.zapfix',
+    config: {
+      googleMapsApiKey
+    },
     infoPlist: {
       NSAllowsLocalNetworking: true,
       NSBonjourServices: ['_expo._tcp'],
@@ -35,6 +39,11 @@ module.exports = ({ config }) => ({
   },
   android: {
     package: 'com.zapfix.app',
+    config: {
+      googleMaps: {
+        apiKey: googleMapsApiKey
+      }
+    },
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0D1B3E'

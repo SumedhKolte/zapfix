@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/colors';
 import { Card } from '../ui/Card';
@@ -13,11 +14,18 @@ type EarningsSummaryProps = {
 export const EarningsSummary = ({ total, jobs, label }: EarningsSummaryProps) => {
   return (
     <Card>
-      <Text style={{ fontSize: 12, color: Colors.midGray }}>{label}</Text>
-      <Text style={{ fontSize: 24, fontWeight: '700', color: Colors.navy.primary }}>
-        {formatCurrency(total)}
-      </Text>
-      <Text style={{ fontSize: 12, color: Colors.darkGray }}>{jobs} jobs</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 12, color: Colors.midGray, fontWeight: '700' }}>{label}</Text>
+          <Text style={{ fontSize: 24, fontWeight: '900', color: Colors.navy.primary, marginTop: 4 }}>
+            {formatCurrency(total)}
+          </Text>
+          <Text style={{ fontSize: 12, color: Colors.darkGray, marginTop: 4 }}>{jobs} jobs paid</Text>
+        </View>
+        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.success + '12', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="cash-outline" size={22} color={Colors.success} />
+        </View>
+      </View>
     </Card>
   );
 };
