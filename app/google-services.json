@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589410521559",
+    "project_id": "zapfix-app",
+    "storage_bucket": "zapfix-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589410521559:android:33857bae55605d269ebb92",
+        "android_client_info": {
+          "package_name": "com.zapfix.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlE0QDdkpxw8NrYFwgyuS1sFLbk97YVNA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

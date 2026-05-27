@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import {
   ScrollView, Text, View, Pressable,
-  Animated, Image,
+  Animated, Easing, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -10,9 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from '@/hooks/useLocation';
-import { useJob } from '@/hooks/useJob';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { Button } from '@/components/ui/Button';
+import { useProfile } from '@/hooks/useProfile';
+import { parseAddressText } from '@/utils/geo';
 
 const Theme = {
   navy: '#0F2057',
@@ -32,13 +31,24 @@ const Theme = {
   white: '#FFFFFF',
 };
 
-const categories = [
-  { label: 'AC Repair',    icon: 'thermometer', color: '#EBF3FF' },
-  { label: 'Electrical',   icon: 'flash',        color: '#FFF8D6' },
-  { label: 'Plumbing',     icon: 'water',        color: '#E8F5FF' },
-  { label: 'Washing',      icon: 'shirt',        color: '#F0E6FF' },
-  { label: 'Refrigerator', icon: 'snow',         color: '#E6FFF3' },
+type Category = {
+  label: string;
+  icon: string;
+  tint: string;          // pastel background
+  iconBg: string;        // contrasting accent for the icon chip
+  description: string;
+};
+
+const categories: Category[] = [
+  { label: 'AC Repair',     icon: 'thermometer', tint: '#EBF3FF', iconBg: '#1B6FE8', description: 'Cooling, gas, filter' },
+  { label: 'Electrical',    icon: 'flash',       tint: '#FFF8D6', iconBg: '#F5B800', description: 'Wiring, switches' },
+  { label: 'Plumbing',      icon: 'water',       tint: '#E8F5FF', iconBg: '#1B6FE8', description: 'Leaks, taps, drains' },
+  { label: 'Washing',       icon: 'shirt',       tint: '#F0E6FF', iconBg: '#7C3AED', description: 'Washer & dryer fixes' },
+  { label: 'Refrigerator',  icon: 'snow',        tint: '#E6FFF3', iconBg: '#1A7A4A', description: 'Cooling, ice, noise' },
+  { label: 'Geyser',        icon: 'flame',       tint: '#FFEDE5', iconBg: '#C2410C', description: 'Hot water issues' },
 ];
+
+// ---------- Animation helpers ----------
 
 function AnimatedCard({ children, delay = 0, style }: any) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -58,34 +68,92 @@ function AnimatedCard({ children, delay = 0, style }: any) {
   );
 }
 
-function CategoryChip({ label, icon, color, onPress }: any) {
+// Shimmering pulse used while jobs / addresses are loading.
+function ShimmerBlock({ height = 70, radius = 14, style }: any) {
+  const opacity = useRef(new Animated.Value(0.45)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.45, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    ).start();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={[{
+        height,
+        borderRadius: radius,
+        backgroundColor: Theme.border,
+        opacity,
+      }, style]}
+    />
+  );
+}
+
+function CategoryCard({ category, onPress, delay = 0 }: { category: Category; onPress: () => void; delay?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const enter = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(enter, {
+      toValue: 1,
+      duration: 380,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const enterStyle = {
+    opacity: enter,
+    transform: [
+      { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+      { scale },
+    ],
+  };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[{ width: '48%' }, enterStyle]}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => Animated.spring(scale, { toValue: 0.93, useNativeDriver: true }).start()}
+        onPressIn={() => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={{
-          backgroundColor: color,
-          borderRadius: 14,
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          alignItems: 'center',
-          minWidth: 82,
+          backgroundColor: category.tint,
+          borderRadius: 18,
+          padding: 14,
+          minHeight: 118,
           borderWidth: 1,
           borderColor: Theme.border,
+          justifyContent: 'space-between',
         }}
       >
-        <Ionicons name={icon as any} size={20} color={Theme.navy} />
-        <Text style={{ fontSize: 11, color: Theme.textDark, marginTop: 4, fontWeight: '700' }}>{label}</Text>
+        <View
+          style={{
+            width: 40, height: 40, borderRadius: 12,
+            backgroundColor: category.iconBg,
+            alignItems: 'center', justifyContent: 'center',
+            shadowColor: category.iconBg,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
+          <Ionicons name={category.icon as any} size={20} color={Theme.white} />
+        </View>
+        <View>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>{category.label}</Text>
+          <Text style={{ fontSize: 11, color: Theme.textMid, marginTop: 2 }} numberOfLines={1}>
+            {category.description}
+          </Text>
+        </View>
       </Pressable>
     </Animated.View>
   );
 }
 
-function ActionButton({ icon, label, onPress, accent }: any) {
+function ActionButton({ icon, label, onPress }: any) {
   const scale = useRef(new Animated.Value(1)).current;
   return (
     <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
@@ -94,18 +162,18 @@ function ActionButton({ icon, label, onPress, accent }: any) {
         onPressIn={() => Animated.spring(scale, { toValue: 0.93, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={{
-          backgroundColor: accent ? Theme.amber : Theme.cream,
+          backgroundColor: Theme.cream,
           borderRadius: 14,
           paddingVertical: 14,
           alignItems: 'center',
           borderWidth: 1.5,
-          borderColor: accent ? Theme.amber : Theme.border,
+          borderColor: Theme.border,
           gap: 6,
         }}
       >
         <View style={{
           width: 36, height: 36, borderRadius: 18,
-          backgroundColor: accent ? Theme.navy : Theme.navy,
+          backgroundColor: Theme.navy,
           alignItems: 'center', justifyContent: 'center',
         }}>
           <Ionicons name={icon} size={18} color={Theme.white} />
@@ -116,22 +184,16 @@ function ActionButton({ icon, label, onPress, accent }: any) {
   );
 }
 
-// ─── Logo placeholder component ──────────────────────────────────────────────
 function LogoMark() {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      {/* Replace <Image> below with your actual logo asset:
-          <Image source={require('@/assets/logo.png')} style={{ width: 28, height: 28 }} resizeMode="contain" />
-      */}
-      <View style={{
-        width: 32, height: 32, borderRadius: 9,
-        backgroundColor: Theme.amber,
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Ionicons name="flash" size={18} color={Theme.navy} />
-      </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Image
+        source={require('../../assets/icon.png')}
+        style={{ width: 34, height: 34, borderRadius: 10 }}
+        resizeMode="contain"
+      />
       <Text style={{ color: Theme.white, fontSize: 19, fontWeight: '800', letterSpacing: -0.5 }}>
-        Zapfix
+        ZapFix
       </Text>
     </View>
   );
@@ -141,31 +203,21 @@ export default function CustomerHome() {
   const router = useRouter();
   const { profile } = useAuth();
   const { areaName } = useLocation();
-  const { jobsQuery } = useJob({ customerId: profile?.id });
+  const { addressesQuery } = useProfile(profile?.id ?? '');
   const headerAnim = useRef(new Animated.Value(0)).current;
 
-  const activeJob = useMemo(() => {
-    return jobsQuery.data?.find(
-      (job) => job.status !== 'completed' && job.status !== 'cancelled'
-    );
-  }, [jobsQuery.data]);
+  const defaultAddress = useMemo(() => {
+    const list = addressesQuery.data ?? [];
+    return list.find((a) => a.is_default) ?? list[0] ?? null;
+  }, [addressesQuery.data]);
 
-  const upcomingBookings = useMemo(() => {
-    const now = Date.now();
-    return (jobsQuery.data ?? [])
-      .filter((job) => {
-        if (job.status === 'completed' || job.status === 'cancelled') return false;
-        const scheduledAt = (job.ai_raw_response as any)?.scheduling?.scheduled_at;
-        if (!scheduledAt) return false;
-        return new Date(scheduledAt).getTime() > now - 60 * 60 * 1000; // include in-progress visits
-      })
-      .sort((a, b) => {
-        const aT = new Date((a.ai_raw_response as any)?.scheduling?.scheduled_at ?? 0).getTime();
-        const bT = new Date((b.ai_raw_response as any)?.scheduling?.scheduled_at ?? 0).getTime();
-        return aT - bT;
-      })
-      .slice(0, 5);
-  }, [jobsQuery.data]);
+  // Strip the receiver suffix (we encode receiver/landmark inside address_text)
+  // so the header pill stays short.
+  const headerLocation =
+    parseAddressText(defaultAddress?.address_text).formatted ||
+    areaName ||
+    'Add a service address';
+  const isAddressesLoading = addressesQuery.isLoading;
 
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
@@ -173,15 +225,26 @@ export default function CustomerHome() {
 
   const greeting = () => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
   };
+
+  // Build the 2-col grid as rows so we vertically scroll, 2 cards per row.
+  const categoryRows = useMemo(() => {
+    const rows: Category[][] = [];
+    for (let i = 0; i < categories.length; i += 2) {
+      rows.push(categories.slice(i, i + 2));
+    }
+    return rows;
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Theme.cream }} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 140 /* room for sticky tracker + tab bar */ }}
+      >
         {/* Header */}
         <Animated.View style={{ opacity: headerAnim }}>
           <LinearGradient
@@ -208,7 +271,6 @@ export default function CustomerHome() {
               </Pressable>
             </View>
 
-            {/* Greeting row */}
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '500' }}>
                 {greeting()} 👋
@@ -218,55 +280,30 @@ export default function CustomerHome() {
               </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 }}>
-              <Ionicons name="location" size={13} color='rgba(255,255,255,0.5)' />
-              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
-                {areaName || 'Fetching location...'}
-              </Text>
-            </View>
+            <Pressable
+              onPress={() => router.push('/(customer)/addresses')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}
+            >
+              <Ionicons name="location" size={13} color={defaultAddress ? Theme.amber : 'rgba(255,255,255,0.5)'} />
+              {isAddressesLoading && !defaultAddress ? (
+                <ShimmerBlock height={12} radius={6} style={{ flex: 1, maxWidth: 160 }} />
+              ) : (
+                <Text
+                  numberOfLines={1}
+                  style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, flex: 1, fontWeight: defaultAddress ? '600' : '400' }}
+                >
+                  {defaultAddress?.label ? `${defaultAddress.label} · ` : ''}{headerLocation}
+                </Text>
+              )}
+              <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.5)" />
+            </Pressable>
           </LinearGradient>
         </Animated.View>
 
         <View style={{ marginTop: -20, paddingHorizontal: 20, gap: 16 }}>
 
-          {/* Active Job Card */}
-          {activeJob ? (
-            <AnimatedCard delay={50}>
-              <View style={{
-                backgroundColor: Theme.amberLight,
-                borderRadius: 20,
-                padding: 16,
-                borderWidth: 1.5,
-                borderColor: Theme.amberBorder,
-                shadowColor: Theme.amber,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.18,
-                shadowRadius: 12,
-                elevation: 4,
-              }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: Theme.amber }} />
-                    <Text style={{ fontWeight: '700', color: Theme.textDark, fontSize: 14 }}>Job in Progress</Text>
-                  </View>
-                  {activeJob.status ? <StatusPill status={activeJob.status} /> : null}
-                </View>
-                <Text style={{ color: Theme.textMid, marginTop: 6, fontSize: 13 }}>{activeJob.ai_diagnosis}</Text>
-                <View style={{ marginTop: 14 }}>
-                  <Button
-                    size="sm"
-                    onPress={() => router.push(`/(customer)/job/${activeJob.id}`)}
-                    rightIcon={<Ionicons name="arrow-forward" size={16} color={Theme.navy} />}
-                  >
-                    Track Job
-                  </Button>
-                </View>
-              </View>
-            </AnimatedCard>
-          ) : null}
-
           {/* Problem Card */}
-          <AnimatedCard delay={100}>
+          <AnimatedCard delay={80}>
             <View style={{
               backgroundColor: Theme.creamCard,
               borderRadius: 20,
@@ -291,108 +328,8 @@ export default function CustomerHome() {
             </View>
           </AnimatedCard>
 
-          {/* Quick Categories */}
-          <AnimatedCard delay={150}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: Theme.textDark, marginBottom: 12 }}>
-              Quick Categories
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              {categories.map((cat) => (
-                <CategoryChip
-                  key={cat.label}
-                  label={cat.label}
-                  icon={cat.icon}
-                  color={cat.color}
-                  onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { category: cat.label } })}
-                />
-              ))}
-            </ScrollView>
-          </AnimatedCard>
-
-          {/* Upcoming Bookings */}
-          <AnimatedCard delay={200}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: Theme.textDark }}>Upcoming Bookings</Text>
-              {upcomingBookings.length > 0 ? (
-                <Pressable onPress={() => router.push('/(customer)/receipts')}>
-                  <Text style={{ color: Theme.blue, fontSize: 13, fontWeight: '700' }}>See all</Text>
-                </Pressable>
-              ) : null}
-            </View>
-
-            {upcomingBookings.length === 0 ? (
-              <Pressable
-                onPress={() => router.push('/(customer)/diagnose')}
-                style={{
-                  backgroundColor: Theme.creamCard, borderRadius: 18, padding: 18,
-                  borderWidth: 1, borderColor: Theme.border, borderStyle: 'dashed',
-                  flexDirection: 'row', alignItems: 'center', gap: 14,
-                }}
-              >
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Theme.amberLight, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="calendar-outline" size={22} color={Theme.navy} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>No upcoming bookings</Text>
-                  <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 2 }}>
-                    Diagnose a problem and pick a slot to book a Pro.
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Theme.textLight} />
-              </Pressable>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4 }}>
-                {upcomingBookings.map((job) => {
-                  const scheduledAt = new Date((job.ai_raw_response as any).scheduling.scheduled_at);
-                  const counter = (job.ai_raw_response as any)?.counter_offer;
-                  const hasOpenCounter = counter && !counter.accepted_at && !counter.declined_at;
-
-                  return (
-                    <Pressable
-                      key={job.id}
-                      onPress={() => router.push(`/(customer)/job/${job.id}`)}
-                      style={{
-                        backgroundColor: Theme.creamCard, borderRadius: 16, padding: 14, width: 220,
-                        borderWidth: 1, borderColor: hasOpenCounter ? Theme.amber : Theme.border,
-                        shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: hasOpenCounter ? Theme.amberLight : Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="construct" size={17} color={hasOpenCounter ? Theme.navy : Theme.navy} />
-                        </View>
-                        {job.status ? <StatusPill status={job.status} /> : null}
-                      </View>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark, marginTop: 10 }} numberOfLines={1}>
-                        {job.ai_diagnosis ?? 'Service'}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
-                        <Ionicons name="calendar-outline" size={12} color={Theme.textLight} />
-                        <Text style={{ fontSize: 11, color: Theme.textMid, fontWeight: '600' }}>
-                          {scheduledAt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                        <Ionicons name="time-outline" size={12} color={Theme.textLight} />
-                        <Text style={{ fontSize: 11, color: Theme.textMid, fontWeight: '600' }}>
-                          {scheduledAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
-                        </Text>
-                      </View>
-                      {hasOpenCounter ? (
-                        <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Theme.border, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <Ionicons name="time" size={12} color={Theme.amber} />
-                          <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.amber }}>NEW TIME PROPOSED</Text>
-                        </View>
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </AnimatedCard>
-
-          {/* Zap Rewards Banner */}
-          <AnimatedCard delay={250}>
+          {/* Zap Rewards (moved above categories) */}
+          <AnimatedCard delay={140}>
             <Pressable
               onPress={() => router.push('/(customer)/rewards')}
               style={{
@@ -435,6 +372,35 @@ export default function CustomerHome() {
                 Points · Achievements · Exclusive offers
               </Text>
             </Pressable>
+          </AnimatedCard>
+
+          {/* Quick Categories — vertical grid, 2 per row */}
+          <AnimatedCard delay={200}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: Theme.textDark }}>Quick Categories</Text>
+              <Text style={{ fontSize: 11, color: Theme.textLight, fontWeight: '600' }}>Pick one to start</Text>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              {categoryRows.map((row, rowIndex) => (
+                <View
+                  key={`row-${rowIndex}`}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}
+                >
+                  {row.map((category, colIndex) => (
+                    <CategoryCard
+                      key={category.label}
+                      category={category}
+                      delay={(rowIndex * 2 + colIndex) * 60}
+                      onPress={() =>
+                        router.push({ pathname: '/(customer)/diagnose', params: { category: category.label } })
+                      }
+                    />
+                  ))}
+                  {row.length === 1 ? <View style={{ width: '48%' }} /> : null}
+                </View>
+              ))}
+            </View>
           </AnimatedCard>
 
         </View>

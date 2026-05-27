@@ -12,6 +12,7 @@ import { useNetInfo } from '@react-native-community/netinfo';
 
 import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
+import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { getProDetails } from '@/services/profile';
 import { Colors } from '@/constants/colors';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
@@ -25,6 +26,11 @@ const RootNavigation = () => {
   const segments = useSegments();
   const { session, profile, isLoading } = useAuth();
   const needsName = isFullNameMissing(profile?.full_name);
+
+  // Once the user is signed in, register their device for OS-level push
+  // notifications so createNotification fan-outs reach the phone, not just the
+  // in-app inbox.
+  usePushRegistration(profile?.id);
 
   const proDetailsQuery = useQuery({
     queryKey: ['pro-details', session?.user.id ?? ''],

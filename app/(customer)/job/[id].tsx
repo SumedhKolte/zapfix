@@ -5,15 +5,20 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useJob } from '@/hooks/useJob';
 import { useAuth } from '@/hooks/useAuth';
+import { useProSummary } from '@/hooks/useProSummary';
 import { ProAssignedCard } from '@/components/customer/ProAssignedCard';
 import { JobStatusBar } from '@/components/customer/JobStatusBar';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { Button } from '@/components/ui/Button';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
 import { createNotification } from '@/services/notifications';
+import { subscribeToJob } from '@/services/jobs';
+import { QueryKeys } from '@/constants/queryKeys';
+import { distanceKm, normalizeGeoPoint } from '@/utils/geo';
 
 const Theme = {
   navy: '#0F2057',
@@ -51,6 +56,7 @@ function Section({ children, style }: any) {
 
 export default function JobTracking() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { id }  = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const { jobQuery, acceptCounterOffer, declineCounterOffer, cancelJob } = useJob({ jobId: id });
@@ -60,6 +66,19 @@ export default function JobTracking() {
   useEffect(() => {
     Animated.timing(headerAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, []);
+
+  // Live updates on this job — covers the pro accepting/cancelling, status
+  // transitions, counter-offer changes. Without this the screen sits on
+  // stale data until the user pulls to refresh.
+  useEffect(() => {
+    if (!id) return;
+    const unsub = subscribeToJob(id, () => {
+      queryClient.invalidateQueries({ queryKey: QueryKeys.job(id) });
+      // pro_id may have changed (cancelled → rematched), refresh the summary too.
+      queryClient.invalidateQueries({ queryKey: ['pro-summary'] });
+    });
+    return () => unsub();
+  }, [id, queryClient]);
 
   const job = jobQuery.data;
   const scheduling = (job?.ai_raw_response as any)?.scheduling;
@@ -71,6 +90,28 @@ export default function JobTracking() {
   const counter = (job?.ai_raw_response as any)?.counter_offer;
   const hasOpenCounter = counter && !counter.accepted_at && !counter.declined_at;
   const counterAt = counter?.proposed_at ? new Date(counter.proposed_at) : null;
+
+  // Pro public summary — only resolves once a pro has been assigned and is
+  // still on the job. If the pro later cancels, we clear the card and show
+  // a "finding another pro" banner instead.
+  const proSummaryQuery = useProSummary(job?.pro_id ?? null);
+  const proSummary = proSummaryQuery.data;
+
+  const proCancellations = ((job?.ai_raw_response as any)?.pro_cancellations ?? []) as any[];
+  const lastProCancellation = proCancellations.length ? proCancellations[proCancellations.length - 1] : null;
+  // Show the "we're finding another pro" banner only while we're actually
+  // searching again *after* an accepted pro bailed. Without the status guard
+  // it would linger forever on the cancelled history.
+  const showRematchingBanner = !!lastProCancellation && job?.status === 'searching';
+
+  // Live distance Pro ↔ customer. We use the pro's last known location and
+  // the job's saved location; if either is missing we just hide the chip.
+  const proDistanceKm = (() => {
+    const proPoint = normalizeGeoPoint(proSummary?.currentLocation);
+    const jobPoint = normalizeGeoPoint(job?.job_location);
+    if (!proPoint || !jobPoint) return null;
+    return distanceKm(proPoint, jobPoint);
+  })();
 
   const statusLabels: Record<string, string> = {
     triage:     'Analysing your problem',
@@ -113,7 +154,8 @@ export default function JobTracking() {
     if (!id) return;
     setBusy('decline');
     try {
-      await declineCounterOffer({ jobId: id });
+      // Notify FIRST — once we decline, the proposing pro is no longer pro_id
+      // on the job, and the notification RLS would reject the insert.
       if (counter?.pro_id) {
         await createNotification({
           userId: counter.pro_id,
@@ -122,6 +164,7 @@ export default function JobTracking() {
           jobId: id,
         });
       }
+      await declineCounterOffer({ jobId: id });
       Alert.alert('Declined', 'We\'ll find another Pro for your original slot.');
     } catch (err) {
       console.error(err);
@@ -136,6 +179,17 @@ export default function JobTracking() {
     setBusy('cancel');
     try {
       await cancelJob({ jobId: id });
+      // If a pro had already accepted, tell them the customer cancelled so
+      // they don't show up to a no-job. Skip when no pro is assigned yet.
+      if (job?.pro_id) {
+        await createNotification({
+          userId: job.pro_id,
+          title: 'Customer cancelled the job',
+          body: 'No need to head out — the customer just cancelled this booking.',
+          jobId: id,
+          deepLink: `/(pro)/dashboard`,
+        });
+      }
       Alert.alert('Cancelled', 'Your booking has been cancelled.', [
         { text: 'OK', onPress: () => router.replace('/(customer)/home') }
       ]);
@@ -238,16 +292,40 @@ export default function JobTracking() {
           </View>
         ) : null}
 
-        {/* Pro Card */}
-        {job && (job.status === 'matched' || job.status === 'in_transit' || job.status === 'arrived' || job.status === 'working' || job.status === 'completed') ? (
+        {/* Rematching banner — pro had to cancel after accepting */}
+        {showRematchingBanner ? (
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            backgroundColor: Theme.errorLight, borderRadius: 16, padding: 14,
+            borderWidth: 1, borderColor: Theme.error + '40',
+          }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: Theme.error + '15', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="refresh" size={18} color={Theme.error} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: Theme.error }}>
+                Your Pro had to cancel
+              </Text>
+              <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 2 }}>
+                {`${lastProCancellation?.reason ?? 'They couldn\'t make it.'} We\'re finding another Pro for you now.`}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Pro Card — real data from profiles + pro_details + reviews */}
+        {job?.pro_id && (job.status === 'matched' || job.status === 'in_transit' || job.status === 'arrived' || job.status === 'working' || job.status === 'completed') ? (
           <ProAssignedCard
-            name="Assigned Pro"
-            rating={4.8}
+            name={proSummary?.fullName ?? 'Your Pro'}
+            avatarUrl={proSummary?.avatarUrl ?? null}
+            rating={proSummary?.ratingAvg ?? null}
+            ratingCount={proSummary?.ratingCount ?? 0}
             skill="Certified Technician"
-            distanceKm={2.3}
-            score={9.1}
-            jobsCompleted={47}
+            distanceKm={proDistanceKm}
+            score={proSummary?.skillScore ?? null}
+            jobsCompleted={proSummary?.jobsCompleted ?? 0}
             hasPart
+            loading={proSummaryQuery.isLoading}
             onContact={
               job.status === 'in_transit' || job.status === 'arrived' || job.status === 'working'
                 ? () => Alert.alert('Contact Pro', 'Call feature coming soon. The pro will reach out if needed.')
@@ -291,9 +369,7 @@ export default function JobTracking() {
             <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark, marginBottom: 12 }}>Job Details</Text>
             {[
               { label: 'Problem',  value: job?.ai_diagnosis ?? '—' },
-              { label: 'Est. Cost', value: job?.est_cost_min && job?.est_cost_max
-                  ? `${formatCurrency(job.est_cost_min)} – ${formatCurrency(job.est_cost_max)}`
-                  : '—' },
+              { label: 'Est. Cost', value: formatCostEstimate(job?.est_cost_min, job?.est_cost_max) ?? '—' },
               { label: 'Confidence', value: job?.ai_confidence ? `${Math.round(job.ai_confidence * 100)}%` : '—' },
             ].map((row, i) => (
               <View key={row.label} style={{

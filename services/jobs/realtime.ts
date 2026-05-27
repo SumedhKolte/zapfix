@@ -51,18 +51,22 @@ export const subscribeToNewJobRequest = (
   };
 };
 
-// Listens for any new or updated job that's currently looking for a pro.
+// Listens for any new or updated job. We listen broadly (no status filter on
+// UPDATE) so transitions OUT of 'searching' — e.g. customer cancel, another
+// pro accepted, status change to matched — also trigger a refetch on the pro
+// dashboard. Without this, cancelled jobs linger on the pro's screen until
+// they pull to refresh.
 export const subscribeToOpenJobRequests = (onChange: (payload: unknown) => void) => {
   const channel = supabase
     .channel('open-job-requests')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'jobs', filter: 'status=eq.searching' },
+      { event: 'INSERT', schema: 'public', table: 'jobs' },
       (payload) => onChange(payload)
     )
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'jobs', filter: 'status=eq.searching' },
+      { event: 'UPDATE', schema: 'public', table: 'jobs' },
       (payload) => onChange(payload)
     )
     .subscribe();

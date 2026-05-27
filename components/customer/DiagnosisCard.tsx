@@ -141,7 +141,9 @@ export const DiagnosisCard = ({
           <View>
             <Text style={{ fontSize: 11, fontWeight: '700', color: Theme.textMid }}>ESTIMATED COST</Text>
             <Text style={{ fontSize: 20, fontWeight: '800', color: Theme.textDark, marginTop: 2 }}>
-              {formatCurrency(costMin)} – {formatCurrency(costMax)}
+              {costMin === costMax
+                ? formatCurrency(costMin)
+                : `${formatCurrency(costMin)} – ${formatCurrency(costMax)}`}
             </Text>
           </View>
           <Ionicons name="cash-outline" size={28} color={Theme.navy} />

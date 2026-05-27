@@ -1,0 +1,54 @@
+# EAS replaces (not extends) .gitignore when this file exists — keep both in
+# sync. We add the heavy local-only artifacts that bloat the upload (the
+# project archive was 712 MB until this file existed). EAS regenerates
+# everything inside these on the worker anyway.
+
+# --- .gitignore mirror ---
+node_modules/
+.expo/
+.expo-shared/
+dist/
+.env.local
+.env
+*.log
+coverage/
+.DS_Store
+
+# Native build outputs (the local 2 GB cache that was being shipped).
+# The CMake cache especially is dangerous: it bakes Windows paths into
+# config_fingerprint.bin / compile_commands.json which then break the
+# Linux EAS worker during gradle configuration.
+android/app/build/
+android/app/.cxx/
+android/build/
+android/.gradle/
+android/.gradle-tmp/
+android/.cxx/
+# Node modules' compiled outputs that get cached under node_modules/* during
+# local builds. EAS re-installs node_modules itself so these are stale.
+node_modules/*/android/build/
+node_modules/*/android/.cxx/
+node_modules/**/android/build/
+node_modules/**/android/.cxx/
+ios/Pods/
+ios/build/
+ios/.xcode.env.local
+
+# Local-machine paths leak into EAS warnings
+android/local.properties
+
+# Metro / Expo caches and dev bundles
+.metro-cache/
+.expo/
+.expo-shared/
+.tmp-android-dev.bundle
+.tmp-assets/
+
+# Editor / OS junk
+.vscode/
+.idea/
+*.log
+.DS_Store
+
+# Test outputs we don't ship
+coverage/

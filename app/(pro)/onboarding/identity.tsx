@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,6 +13,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { uploadKycDocument } from '@/services/uploads';
 
+type UploadState = {
+  aadhaarFront: boolean;
+  aadhaarBack: boolean;
+  selfie: boolean;
+};
+
 export default function Identity() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -20,36 +26,57 @@ export default function Identity() {
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [city, setCity] = useState('');
-  const [aadhaarFront, setAadhaarFront] = useState<string | null>(null);
-  const [aadhaarBack, setAadhaarBack] = useState<string | null>(null);
-  const [selfie, setSelfie] = useState<string | null>(null);
+  const [aadhaarFront, setAadhaarFront] = useState(false);
+  const [aadhaarBack, setAadhaarBack] = useState(false);
+  const [selfie, setSelfie] = useState(false);
+  const [uploading, setUploading] = useState<UploadState>({
+    aadhaarFront: false,
+    aadhaarBack: false,
+    selfie: false,
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  const handlePick = async (setter: (uri: string) => void, fileName: string) => {
+  const handlePick = async (
+    key: keyof UploadState,
+    setter: (v: boolean) => void,
+    fileName: string
+  ) => {
     const result = await ImagePicker.launchImageLibraryAsync({ quality: 1 });
-    if (!result.canceled && profile?.id) {
-      const uri = result.assets[0].uri;
-      await uploadKycDocument(profile.id, uri, fileName);
-      setter(uri);
+    if (result.canceled || !profile?.id) return;
+
+    setUploading((prev) => ({ ...prev, [key]: true }));
+    try {
+      await uploadKycDocument(profile.id, result.assets[0].uri, fileName);
+      setter(true);
+    } catch {
+      Alert.alert('Upload Failed', 'Could not upload the document. Please check your connection and try again.');
+    } finally {
+      setUploading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
   const handleContinue = async () => {
-    if (!profile?.id) {
-      return;
+    if (!profile?.id) return;
+    setSubmitting(true);
+    try {
+      await updateProfile({ id: profile.id, data: { full_name: fullName } });
+      await updateProDetails({
+        id: profile.id,
+        data: {
+          kyc_status: 'pending',
+          liveness_verified: selfie,
+          onboarding_step: 'skills'
+        }
+      });
+      router.replace('/(pro)/onboarding/skills');
+    } catch {
+      Alert.alert('Error', 'Could not save your details. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-
-    await updateProfile({ id: profile.id, data: { full_name: fullName } });
-    await updateProDetails({
-      id: profile.id,
-      data: {
-        kyc_status: 'pending',
-        liveness_verified: Boolean(selfie),
-        onboarding_step: 'skills'
-      }
-    });
-
-    router.replace('/(pro)/onboarding/skills');
   };
+
+  const allUploaded = aadhaarFront && aadhaarBack && selfie;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.white }}>
@@ -72,10 +99,18 @@ export default function Identity() {
             We use Razorpay KYC. Your Aadhaar number is never stored by Zapfix.
           </Text>
           <View style={{ gap: 12, marginTop: 12 }}>
-            <Button variant="secondary" onPress={() => handlePick((uri) => setAadhaarFront(uri), 'aadhaar_front.jpg')}>
+            <Button
+              variant="secondary"
+              loading={uploading.aadhaarFront}
+              onPress={() => handlePick('aadhaarFront', setAadhaarFront, 'aadhaar_front.jpg')}
+            >
               {aadhaarFront ? 'Uploaded Aadhaar Front' : 'Upload Aadhaar Front'}
             </Button>
-            <Button variant="secondary" onPress={() => handlePick((uri) => setAadhaarBack(uri), 'aadhaar_back.jpg')}>
+            <Button
+              variant="secondary"
+              loading={uploading.aadhaarBack}
+              onPress={() => handlePick('aadhaarBack', setAadhaarBack, 'aadhaar_back.jpg')}
+            >
               {aadhaarBack ? 'Uploaded Aadhaar Back' : 'Upload Aadhaar Back'}
             </Button>
           </View>
@@ -86,12 +121,16 @@ export default function Identity() {
           <Text style={{ color: Colors.midGray, marginTop: 6 }}>
             Take a selfie to verify your identity.
           </Text>
-          <Button variant="secondary" onPress={() => handlePick((uri) => setSelfie(uri), 'selfie.jpg')}>
+          <Button
+            variant="secondary"
+            loading={uploading.selfie}
+            onPress={() => handlePick('selfie', setSelfie, 'selfie.jpg')}
+          >
             {selfie ? 'Selfie Captured' : 'Take a Selfie'}
           </Button>
         </Card>
 
-        <Button onPress={handleContinue} disabled={!aadhaarFront || !aadhaarBack || !selfie}>
+        <Button onPress={handleContinue} disabled={!allUploaded} loading={submitting}>
           Continue
         </Button>
       </ScrollView>

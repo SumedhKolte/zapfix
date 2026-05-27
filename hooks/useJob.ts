@@ -11,6 +11,7 @@ import {
   getJobsForPro,
   getOpenJobRequests,
   proAcceptJob,
+  proCancelAcceptedJob,
   proDeclineJob,
   proMarkArrived,
   proProposeAltTime,
@@ -92,6 +93,12 @@ export const useJob = (options: { jobId?: string; customerId?: string; proId?: s
     onSuccess: (data) => invalidate(data?.id),
   });
 
+  const proCancelAcceptedMutation = useMutation({
+    mutationFn: ({ jobId, proId, reason }: { jobId: string; proId: string; reason?: string }) =>
+      proCancelAcceptedJob(jobId, proId, reason),
+    onSuccess: (data) => invalidate(data?.id),
+  });
+
   const proProposeMutation = useMutation({
     mutationFn: ({ jobId, proId, proposedAt, message }: { jobId: string; proId: string; proposedAt: string; message?: string }) =>
       proProposeAltTime(jobId, proId, proposedAt, message),
@@ -133,6 +140,7 @@ export const useJob = (options: { jobId?: string; customerId?: string; proId?: s
     scheduleJob: scheduleMutation.mutateAsync,
     proAcceptJob: proAcceptMutation.mutateAsync,
     proDeclineJob: proDeclineMutation.mutateAsync,
+    proCancelAcceptedJob: proCancelAcceptedMutation.mutateAsync,
     proProposeAltTime: proProposeMutation.mutateAsync,
     acceptCounterOffer: acceptCounterMutation.mutateAsync,
     declineCounterOffer: declineCounterMutation.mutateAsync,

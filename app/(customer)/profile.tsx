@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, Text, View, Pressable, Animated, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { Button } from '@/components/ui/Button';
+import { StatusPill } from '@/components/ui/StatusPill';
 
 const Theme = {
   navy: '#0F2057',
@@ -133,6 +134,23 @@ export default function Profile() {
   const completedCount = (jobsQuery.data ?? []).filter(j => j.status === 'completed').length;
   const zapPoints      = completedCount * 100 + (completedCount >= 5 ? 250 : 0) + (completedCount >= 3 ? 150 : 0);
 
+  const upcomingBookings = useMemo(() => {
+    const now = Date.now();
+    return (jobsQuery.data ?? [])
+      .filter((job) => {
+        if (job.status === 'completed' || job.status === 'cancelled') return false;
+        const scheduledAt = (job.ai_raw_response as any)?.scheduling?.scheduled_at;
+        if (!scheduledAt) return false;
+        return new Date(scheduledAt).getTime() > now - 60 * 60 * 1000;
+      })
+      .sort((a, b) => {
+        const aT = new Date((a.ai_raw_response as any)?.scheduling?.scheduled_at ?? 0).getTime();
+        const bT = new Date((b.ai_raw_response as any)?.scheduling?.scheduled_at ?? 0).getTime();
+        return aT - bT;
+      })
+      .slice(0, 5);
+  }, [jobsQuery.data]);
+
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -252,6 +270,96 @@ export default function Profile() {
             </Card>
           </AnimatedRow>
         </View>
+
+        {/* Upcoming Bookings */}
+        <AnimatedRow delay={90}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 22, paddingBottom: 6 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: Theme.textMid, letterSpacing: 1.2 }}>
+              UPCOMING BOOKINGS
+            </Text>
+            {upcomingBookings.length > 0 ? (
+              <Pressable onPress={() => router.push('/(customer)/jobs')}>
+                <Text style={{ color: Theme.blue, fontSize: 12, fontWeight: '700' }}>See all</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {upcomingBookings.length === 0 ? (
+            <View style={{ paddingHorizontal: 20 }}>
+              <Pressable
+                onPress={() => router.push('/(customer)/diagnose')}
+                style={{
+                  backgroundColor: Theme.creamCard, borderRadius: 18, padding: 18,
+                  borderWidth: 1, borderColor: Theme.border, borderStyle: 'dashed',
+                  flexDirection: 'row', alignItems: 'center', gap: 14,
+                }}
+              >
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Theme.amber + '20', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="calendar-outline" size={22} color={Theme.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>No upcoming bookings</Text>
+                  <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 2 }}>
+                    Diagnose a problem and pick a slot to book a Pro.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={Theme.textLight} />
+              </Pressable>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingHorizontal: 20, paddingTop: 4 }}
+            >
+              {upcomingBookings.map((job) => {
+                const scheduledAt = new Date((job.ai_raw_response as any).scheduling.scheduled_at);
+                const counter = (job.ai_raw_response as any)?.counter_offer;
+                const hasOpenCounter = counter && !counter.accepted_at && !counter.declined_at;
+
+                return (
+                  <Pressable
+                    key={job.id}
+                    onPress={() => router.push(`/(customer)/job/${job.id}`)}
+                    style={{
+                      backgroundColor: Theme.creamCard, borderRadius: 16, padding: 14, width: 230,
+                      borderWidth: 1, borderColor: hasOpenCounter ? Theme.amber : Theme.border,
+                      shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: hasOpenCounter ? Theme.amber + '20' : Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="construct" size={17} color={Theme.navy} />
+                      </View>
+                      {job.status ? <StatusPill status={job.status} /> : null}
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark, marginTop: 10 }} numberOfLines={1}>
+                      {job.ai_diagnosis ?? 'Service'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                      <Ionicons name="calendar-outline" size={12} color={Theme.textLight} />
+                      <Text style={{ fontSize: 11, color: Theme.textMid, fontWeight: '600' }}>
+                        {scheduledAt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                      <Ionicons name="time-outline" size={12} color={Theme.textLight} />
+                      <Text style={{ fontSize: 11, color: Theme.textMid, fontWeight: '600' }}>
+                        {scheduledAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    {hasOpenCounter ? (
+                      <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Theme.border, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Ionicons name="time" size={12} color={Theme.amber} />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.amber }}>NEW TIME PROPOSED</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </AnimatedRow>
 
         {/* Account Section */}
         <AnimatedRow delay={120}>

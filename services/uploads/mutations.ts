@@ -32,7 +32,7 @@ const getPublicUrl = (bucket: string, path: string) => {
   return data.publicUrl;
 };
 
-const getSignedUrl = async (bucket: string, path: string, expiresInSeconds = 600) => {
+export const getSignedUrl = async (bucket: string, path: string, expiresInSeconds = 600) => {
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
   if (error) {
     throw error;
@@ -40,17 +40,51 @@ const getSignedUrl = async (bucket: string, path: string, expiresInSeconds = 600
   return data.signedUrl;
 };
 
+const kycFileToEntityType = (fileName: string): 'pro_selfie' | 'pro_aadhaar' => {
+  return fileName.includes('selfie') ? 'pro_selfie' : 'pro_aadhaar';
+};
+
 export const uploadJobMedia = async (jobId: string, uri: string, fileName: string) => {
   const optimizedUri = await compressImage(uri);
   const path = `jobs/${jobId}/${fileName}`;
   const storedPath = await uploadBlob('job-media', path, optimizedUri, 'image/jpeg');
-  return `job-media/${storedPath}`;
+  const storageUrl = `job-media/${storedPath}`;
+
+  await supabase.from('media_assets').insert({
+    entity_id: jobId,
+    entity_type: 'job_before',
+    storage_url: storageUrl,
+  });
+
+  return storageUrl;
 };
 
 export const uploadKycDocument = async (proId: string, uri: string, fileName: string) => {
   const optimizedUri = await compressImage(uri);
   const path = `${proId}/${fileName}`;
-  return uploadBlob('kyc-docs', path, optimizedUri, 'image/jpeg');
+  const storedPath = await uploadBlob('kyc-docs', path, optimizedUri, 'image/jpeg');
+  const storageUrl = `kyc-docs/${storedPath}`;
+  const entityType = kycFileToEntityType(fileName);
+
+  // Remove stale record for this doc type before inserting fresh one
+  await supabase
+    .from('media_assets')
+    .delete()
+    .eq('entity_id', proId)
+    .eq('entity_type', entityType);
+
+  const { error } = await supabase.from('media_assets').insert({
+    entity_id: proId,
+    entity_type: entityType,
+    storage_url: storageUrl,
+  });
+
+  if (error) {
+    console.error('KYC upload failed', error);
+    throw error;
+  }
+
+  return storageUrl;
 };
 
 export const uploadAvatar = async (userId: string, uri: string) => {

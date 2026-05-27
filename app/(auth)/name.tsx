@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,7 @@ import { getProDetails, updateProfile } from '@/services/profile';
 import { useAuthStore } from '@/stores/authStore';
 import { isFullNameMissing } from '@/utils/profile';
 import { QueryKeys } from '@/constants/queryKeys';
+import { friendlyAuthError } from '@/utils/authErrors';
 
 const Theme = {
   navy: '#0F2057',
@@ -81,6 +82,9 @@ export default function NameCapture() {
       }
 
       router.replace('/(customer)/home');
+    } catch (err) {
+      const { title, message } = friendlyAuthError(err);
+      Alert.alert(title, message);
     } finally {
       setIsSaving(false);
     }

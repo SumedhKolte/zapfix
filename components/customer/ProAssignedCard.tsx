@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { Text, View, Pressable, Animated } from 'react-native';
+import { Image, Text, View, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const Theme = {
@@ -19,12 +19,15 @@ const Theme = {
 
 type ProAssignedCardProps = {
   name: string;
-  rating: number;
+  avatarUrl?: string | null;
+  rating: number | null;
+  ratingCount?: number;
   skill: string;
-  distanceKm: number;
-  score: number;
+  distanceKm: number | null;
+  score: number | null;
   jobsCompleted: number;
   hasPart: boolean;
+  loading?: boolean;
   onContact?: () => void;
 };
 
@@ -45,9 +48,13 @@ function StatItem({ icon, label, value, highlight }: any) {
 }
 
 export const ProAssignedCard = ({
-  name, rating, skill, distanceKm,
-  score, jobsCompleted, hasPart, onContact,
+  name, avatarUrl, rating, ratingCount, skill, distanceKm,
+  score, jobsCompleted, hasPart, loading, onContact,
 }: ProAssignedCardProps) => {
+  const ratingValue = rating ?? 0;
+  const ratingLabel = rating !== null ? rating.toFixed(1) : 'New';
+  const scoreLabel = score !== null ? score.toFixed(1) : '—';
+  const distanceLabel = distanceKm !== null ? `${distanceKm.toFixed(1)}km` : '—';
   const slideAnim = useRef(new Animated.Value(20)).current;
   const opacity   = useRef(new Animated.Value(0)).current;
 
@@ -87,23 +94,28 @@ export const ProAssignedCard = ({
               backgroundColor: Theme.navy,
               alignItems: 'center', justifyContent: 'center',
               borderWidth: 3, borderColor: Theme.amber,
+              overflow: 'hidden',
             }}>
-              <Text style={{ color: Theme.amber, fontSize: 20, fontWeight: '800' }}>{initials}</Text>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : (
+                <Text style={{ color: Theme.amber, fontSize: 20, fontWeight: '800' }}>{initials || '?'}</Text>
+              )}
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 17, fontWeight: '800', color: Theme.textDark }}>{name}</Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: Theme.textDark }} numberOfLines={1}>{name}</Text>
               <Text style={{ color: Theme.textMid, fontSize: 13, marginTop: 1 }}>{skill}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 }}>
                 {[1, 2, 3, 4, 5].map(i => (
                   <Ionicons
                     key={i} name="star"
                     size={12}
-                    color={i <= Math.round(rating) ? Theme.amber : Theme.border}
+                    color={i <= Math.round(ratingValue) ? Theme.amber : Theme.border}
                   />
                 ))}
                 <Text style={{ fontSize: 12, color: Theme.textMid, marginLeft: 3 }}>
-                  {rating.toFixed(1)} ({jobsCompleted})
+                  {ratingLabel}{ratingCount ? ` (${ratingCount})` : ''}
                 </Text>
               </View>
             </View>
@@ -112,19 +124,25 @@ export const ProAssignedCard = ({
               backgroundColor: Theme.navy + '10',
               borderRadius: 12, padding: 8, alignItems: 'center',
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: Theme.navy }}>{score.toFixed(1)}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: Theme.navy }}>{scoreLabel}</Text>
               <Text style={{ fontSize: 9, color: Theme.textMid, fontWeight: '700' }}>SCORE</Text>
             </View>
           </View>
+
+          {loading ? (
+            <Text style={{ fontSize: 11, color: Theme.textLight, marginTop: 10 }}>
+              Loading pro profile…
+            </Text>
+          ) : null}
 
           {/* Stats */}
           <View style={{
             flexDirection: 'row', marginTop: 16, paddingTop: 14,
             borderTopWidth: 1, borderTopColor: Theme.border, gap: 4,
           }}>
-            <StatItem icon="location"  label="Distance"  value={`${distanceKm.toFixed(1)}km`} />
+            <StatItem icon="location"  label="Distance"  value={distanceLabel} />
             <StatItem icon="briefcase" label="Jobs Done"  value={jobsCompleted} />
-            <StatItem icon="star"      label="Rating"     value={rating.toFixed(1)} highlight />
+            <StatItem icon="star"      label="Rating"     value={ratingLabel} highlight />
             <StatItem
               icon="cube"
               label="Has Part"

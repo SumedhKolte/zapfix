@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { phoneSchema } from '@/utils/validators';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
+import { friendlyAuthError } from '@/utils/authErrors';
 
 const Theme = {
   navy: '#0F2057',
@@ -46,8 +47,13 @@ export default function PhoneEntry() {
   const phone = watch('phone');
 
   const onSubmit = async (values: FormValues) => {
-    await signInWithOtp(`+91${values.phone}`);
-    router.push({ pathname: '/(auth)/otp-verify', params: { phone: values.phone } });
+    try {
+      await signInWithOtp(`+91${values.phone}`);
+      router.push({ pathname: '/(auth)/otp-verify', params: { phone: values.phone } });
+    } catch (err) {
+      const { title, message } = friendlyAuthError(err);
+      Alert.alert(title, message);
+    }
   };
 
   return (

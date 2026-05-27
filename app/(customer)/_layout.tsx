@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Animated, Pressable, View, Text, StyleSheet } from 'react-native';
 import { useRef, useEffect } from 'react';
 
+import { ActiveJobTracker } from '@/components/customer/ActiveJobTracker';
+
 const Theme = {
   navy: '#0F2057',
   navyMid: '#1A3580',
@@ -129,6 +131,7 @@ function CenterTabButton({ onPress, accessibilityState }: any) {
 /* ── Layout ── */
 export default function CustomerLayout() {
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       backBehavior="history"
       screenOptions={{
@@ -238,5 +241,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="receipt/[id]" options={{ href: null }} />
       <Tabs.Screen name="receipts" options={{ href: null }} />
     </Tabs>
+    <ActiveJobTracker />
+    </View>
   );
 }
