@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { createNotification } from '@/services/notifications';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
 
 const buildSuggestionSlots = (anchor: Date): Date[] => {
   const out: Date[] = [];
@@ -82,6 +82,15 @@ export default function ProRequestDetail() {
           setBusy('decline');
           try {
             await proDeclineJob({ jobId: job.id, proId: profile.id });
+            if (job.customer_id) {
+              await createNotification({
+                userId: job.customer_id,
+                title: 'Still searching for a Pro',
+                body: 'A nearby Pro was unavailable, but we are looking for another match for you.',
+                jobId: job.id,
+                deepLink: `/(customer)/job/${job.id}`,
+              });
+            }
             router.replace('/(pro)/dashboard');
           } catch (err) {
             console.error(err);
@@ -137,7 +146,13 @@ export default function ProRequestDetail() {
         <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 28 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => {
+                // canGoBack() guards against "GO_BACK was not handled" when
+                // the screen was opened directly (push notification tap, deep
+                // link, etc.) and the navigation stack is empty.
+                if (router.canGoBack()) router.back();
+                else router.replace('/(pro)/dashboard');
+              }}
               style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons name="arrow-back" size={20} color={Colors.white} />
@@ -193,7 +208,7 @@ export default function ProRequestDetail() {
               <View style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border }}>
                 <Text style={{ fontSize: 11, color: Colors.midGray, fontWeight: '700', letterSpacing: 0.5 }}>EST. JOB VALUE</Text>
                 <Text style={{ fontSize: 16, fontWeight: '800', color: Colors.navy.primary, marginTop: 4 }}>
-                  {formatCurrency(job.est_cost_min)}–{formatCurrency(job.est_cost_max)}
+                  {formatCostEstimate(job.est_cost_min, job.est_cost_max) ?? formatCurrency(job.est_cost_min ?? 0)}
                 </Text>
               </View>
               <View style={{ flex: 1, backgroundColor: Colors.amber.primary + '15', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.amber.primary + '50' }}>

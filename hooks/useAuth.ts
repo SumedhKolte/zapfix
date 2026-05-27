@@ -16,15 +16,30 @@ export const useAuth = () => {
     let isMounted = true;
 
     const loadSession = async () => {
-      const currentSession = await getSession();
-      if (isMounted) {
-        setSession(currentSession);
+      try {
+        const currentSession = await getSession();
+        if (isMounted) setSession(currentSession);
+      } catch (err) {
+        // getSession() already handles the "token expired" branch and returns
+        // null; anything reaching here is unexpected. Surface to the console
+        // and fall through to an unauthenticated state so the app keeps
+        // rendering instead of getting stuck on a splash.
+        console.warn('[auth] loadSession failed', err);
+        if (isMounted) setSession(null);
       }
     };
 
     loadSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // TOKEN_REFRESHED + SIGNED_IN both deliver a fresh session — store it.
+      // SIGNED_OUT and USER_DELETED drop the session. We trust whatever the
+      // server says here; any failure to refresh raises an AuthStateChange
+      // event with nextSession=null instead of throwing.
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        clearAuth();
+        return;
+      }
       setSession(nextSession);
     });
 
@@ -32,7 +47,7 @@ export const useAuth = () => {
       isMounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [setSession]);
+  }, [setSession, clearAuth]);
 
   const profileQuery = useQuery({
     queryKey: QueryKeys.profile(session?.user.id ?? ''),

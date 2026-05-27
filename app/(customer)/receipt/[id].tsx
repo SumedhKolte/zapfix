@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/Button';
 import { useJob } from '@/hooks/useJob';
-import { formatCurrency } from '@/utils/formatCurrency';
+import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
 
 const Theme = {
   navy: '#0F2057',
@@ -176,9 +176,7 @@ export default function ReceiptDetail() {
               value={
                 job.final_cost
                   ? formatCurrency(job.final_cost)
-                  : job.est_cost_min && job.est_cost_max
-                    ? `${formatCurrency(job.est_cost_min)} – ${formatCurrency(job.est_cost_max)}`
-                    : 'Calculated after diagnosis'
+                  : formatCostEstimate(job.est_cost_min, job.est_cost_max) ?? 'Calculated after diagnosis'
               }
             />
             <ReceiptRow label="Payment" value={job.final_cost ? 'Paid' : 'Pay after job completion'} />

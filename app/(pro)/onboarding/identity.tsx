@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,7 +11,13 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { deleteKycDocuments, uploadKycDocument } from '@/services/uploads';
+import { uploadKycDocument } from '@/services/uploads';
+
+type UploadState = {
+  aadhaarFront: boolean;
+  aadhaarBack: boolean;
+  selfie: boolean;
+};
 
 export default function Identity() {
   const router = useRouter();
@@ -19,103 +25,58 @@ export default function Identity() {
   const { updateProDetails, updateProfile } = useProfile(profile?.id ?? '');
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
-  const [aadhaarFront, setAadhaarFront] = useState<string | null>(null);
-  const [aadhaarBack, setAadhaarBack] = useState<string | null>(null);
-  const [selfie, setSelfie] = useState<string | null>(null);
-  const [aadhaarFrontPath, setAadhaarFrontPath] = useState<string | null>(null);
-  const [aadhaarBackPath, setAadhaarBackPath] = useState<string | null>(null);
-  const [selfiePath, setSelfiePath] = useState<string | null>(null);
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const originalNameRef = useRef(profile?.full_name ?? '');
+  const [city, setCity] = useState('');
+  const [aadhaarFront, setAadhaarFront] = useState(false);
+  const [aadhaarBack, setAadhaarBack] = useState(false);
+  const [selfie, setSelfie] = useState(false);
+  const [uploading, setUploading] = useState<UploadState>({
+    aadhaarFront: false,
+    aadhaarBack: false,
+    selfie: false,
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (profile?.full_name) {
-      originalNameRef.current = profile.full_name;
-      setFullName(profile.full_name);
-    }
-  }, [profile?.full_name]);
-
-  const uploadImage = async (
-    source: 'camera' | 'library',
-    label: string,
-    fileName: string,
-    onDone: (uri: string, storagePath: string) => void
+  const handlePick = async (
+    key: keyof UploadState,
+    setter: (v: boolean) => void,
+    fileName: string
   ) => {
-    if (!profile?.id) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ quality: 1 });
+    if (result.canceled || !profile?.id) return;
 
-    setUploading(label);
+    setUploading((prev) => ({ ...prev, [key]: true }));
     try {
-      const permission = source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
-        Alert.alert('Permission needed', source === 'camera'
-          ? 'Camera permission is needed to take your selfie.'
-          : 'Photo permission is needed to upload your document.');
-        return;
-      }
-
-      const result = source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ quality: 0.85, allowsEditing: true })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.85, allowsEditing: true });
-
-      if (!result.canceled) {
-        const uri = result.assets[0].uri;
-        const storagePath = await uploadKycDocument(profile.id, uri, fileName);
-        onDone(uri, storagePath);
-      }
-    } catch (err) {
-      console.error('KYC upload failed', err);
-      Alert.alert('Upload failed', 'Please try again with a clear photo.');
+      await uploadKycDocument(profile.id, result.assets[0].uri, fileName);
+      setter(true);
+    } catch {
+      Alert.alert('Upload Failed', 'Could not upload the document. Please check your connection and try again.');
     } finally {
-      setUploading(null);
+      setUploading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
   const handleContinue = async () => {
-    if (!profile?.id) {
-      return;
-    }
-
-    const trimmedName = fullName.trim();
-    if (trimmedName.length < 3) {
-      Alert.alert('Enter your full name', 'Use the same name shown on your ID.');
-      return;
-    }
-
-    setSaving(true);
+    if (!profile?.id) return;
+    setSubmitting(true);
     try {
-      await updateProfile({ id: profile.id, data: { full_name: trimmedName } });
+      await updateProfile({ id: profile.id, data: { full_name: fullName } });
       await updateProDetails({
         id: profile.id,
         data: {
-          aadhaar_ref: [aadhaarFrontPath, aadhaarBackPath].filter(Boolean).join('|') || null,
           kyc_status: 'pending',
-          liveness_verified: Boolean(selfie),
+          liveness_verified: selfie,
+          onboarding_step: 'skills'
         }
       });
-
       router.replace('/(pro)/onboarding/skills');
-    } catch (err) {
-      console.error('Could not save identity step', err);
-      await Promise.allSettled([
-        deleteKycDocuments([aadhaarFrontPath, aadhaarBackPath, selfiePath]),
-        updateProfile({ id: profile.id, data: { full_name: originalNameRef.current } }),
-      ]);
-      setFullName(originalNameRef.current);
-      setAadhaarFront(null);
-      setAadhaarBack(null);
-      setSelfie(null);
-      setAadhaarFrontPath(null);
-      setAadhaarBackPath(null);
-      setSelfiePath(null);
-      Alert.alert('Could not save', 'Please check your connection and try again.');
+    } catch {
+      Alert.alert('Error', 'Could not save your details. Please try again.');
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
+
+  const allUploaded = aadhaarFront && aadhaarBack && selfie;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.white }}>
@@ -139,28 +100,18 @@ export default function Identity() {
           <View style={{ gap: 12, marginTop: 12 }}>
             <Button
               variant="secondary"
-              loading={uploading === 'aadhaar-front'}
-              disabled={Boolean(uploading)}
-              onPress={() => uploadImage('library', 'aadhaar-front', 'aadhaar_front.jpg', (uri, path) => {
-                setAadhaarFront(uri);
-                setAadhaarFrontPath(path);
-              })}
+              loading={uploading.aadhaarFront}
+              onPress={() => handlePick('aadhaarFront', setAadhaarFront, 'aadhaar_front.jpg')}
             >
-              {aadhaarFront ? 'Aadhaar front uploaded' : 'Upload Aadhaar front'}
+              {aadhaarFront ? 'Uploaded Aadhaar Front' : 'Upload Aadhaar Front'}
             </Button>
-            {aadhaarFront ? <Image source={{ uri: aadhaarFront }} style={{ height: 120, borderRadius: 12 }} resizeMode="cover" /> : null}
             <Button
               variant="secondary"
-              loading={uploading === 'aadhaar-back'}
-              disabled={Boolean(uploading)}
-              onPress={() => uploadImage('library', 'aadhaar-back', 'aadhaar_back.jpg', (uri, path) => {
-                setAadhaarBack(uri);
-                setAadhaarBackPath(path);
-              })}
+              loading={uploading.aadhaarBack}
+              onPress={() => handlePick('aadhaarBack', setAadhaarBack, 'aadhaar_back.jpg')}
             >
-              {aadhaarBack ? 'Aadhaar back uploaded' : 'Upload Aadhaar back'}
+              {aadhaarBack ? 'Uploaded Aadhaar Back' : 'Upload Aadhaar Back'}
             </Button>
-            {aadhaarBack ? <Image source={{ uri: aadhaarBack }} style={{ height: 120, borderRadius: 12 }} resizeMode="cover" /> : null}
           </View>
         </Card>
 
@@ -171,19 +122,14 @@ export default function Identity() {
           </Text>
           <Button
             variant="secondary"
-            loading={uploading === 'selfie'}
-            disabled={Boolean(uploading)}
-            onPress={() => uploadImage('camera', 'selfie', 'selfie.jpg', (uri, path) => {
-                setSelfie(uri);
-                setSelfiePath(path);
-              })}
+            loading={uploading.selfie}
+            onPress={() => handlePick('selfie', setSelfie, 'selfie.jpg')}
           >
             {selfie ? 'Selfie Captured' : 'Take a Selfie'}
           </Button>
-          {selfie ? <Image source={{ uri: selfie }} style={{ height: 160, borderRadius: 12, marginTop: 12 }} resizeMode="cover" /> : null}
         </Card>
 
-        <Button onPress={handleContinue} loading={saving} disabled={saving || !aadhaarFront || !aadhaarBack || !selfie}>
+        <Button onPress={handleContinue} disabled={!allUploaded} loading={submitting}>
           Continue
         </Button>
       </ScrollView>

@@ -73,7 +73,8 @@ export const proAcceptJob = async (jobId: string, proId: string) => {
   });
 };
 
-// Pro declines a job (frees it for another pro). We just leave it open.
+// Pro declines a job before accepting. Add them to the declines list so the
+// dashboard filters this request out for them — other pros still see it.
 export const proDeclineJob = async (jobId: string, proId: string) => {
   const current = await fetchJob(jobId);
   const declines = ((current.ai_raw_response as any)?.declines ?? []) as string[];
@@ -81,6 +82,37 @@ export const proDeclineJob = async (jobId: string, proId: string) => {
     declines: Array.from(new Set([...declines, proId])),
   });
   return updateJobStatus(jobId, { ai_raw_response: next });
+};
+
+// Pro who has already accepted needs to bail (emergency, can't reach the
+// site, etc.). Frees the job for re-matching, records the cancellation, and
+// blocks this pro from seeing the same request again.
+export const proCancelAcceptedJob = async (
+  jobId: string,
+  proId: string,
+  reason?: string
+) => {
+  const current = await fetchJob(jobId);
+  const declines = ((current.ai_raw_response as any)?.declines ?? []) as string[];
+  const previousPros = ((current.ai_raw_response as any)?.previous_pros ?? []) as string[];
+  const cancellations = ((current.ai_raw_response as any)?.pro_cancellations ?? []) as any[];
+  const next = mergeRawResponse(current.ai_raw_response, {
+    declines: Array.from(new Set([...declines, proId])),
+    previous_pros: Array.from(new Set([...previousPros, proId])),
+    pro_cancellations: [
+      ...cancellations,
+      { pro_id: proId, reason: reason ?? null, cancelled_at: new Date().toISOString() },
+    ],
+    // Drop any stale counter-offer / matching artifacts so the next pro
+    // sees a clean request.
+    counter_offer: null,
+  });
+  return updateJobStatus(jobId, {
+    pro_id: null,
+    status: 'searching',
+    matched_at: null,
+    ai_raw_response: next,
+  });
 };
 
 // Pro proposes an alternative time. Customer must accept.
@@ -115,17 +147,25 @@ export const acceptCounterOffer = async (jobId: string) => {
   });
 };
 
-// Customer declines the pro's counter-offer.
+// Customer declines the pro's counter-offer. We also add the proposing pro
+// to the declines list so they don't see the same request bounce back into
+// their dashboard after the customer rejected their proposed time.
 export const declineCounterOffer = async (jobId: string) => {
   const current = await fetchJob(jobId);
   const counter = (current.ai_raw_response as any)?.counter_offer;
+  const proposingProId: string | undefined = counter?.pro_id;
+  const declines = ((current.ai_raw_response as any)?.declines ?? []) as string[];
+  const nextDeclines = proposingProId
+    ? Array.from(new Set([...declines, proposingProId]))
+    : declines;
   const next = mergeRawResponse(current.ai_raw_response, {
-    counter_offer: counter ? { ...counter, declined_at: new Date().toISOString() } : null,
+    counter_offer: null,
+    declines: nextDeclines,
   });
   // Free up the job for re-matching.
   return updateJobStatus(jobId, {
     pro_id: null,
-    ai_raw_response: { ...(next as object), counter_offer: null } as Json,
+    ai_raw_response: next,
   });
 };
 

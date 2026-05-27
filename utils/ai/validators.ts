@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const diagnosisSchema = z.object({
+  fault_detected: z.boolean().default(true),
   fault_name: z.string().min(1),
   fault_description: z.string().min(1),
   confidence: z.number().min(0).max(100),

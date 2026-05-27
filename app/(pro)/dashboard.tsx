@@ -15,7 +15,7 @@ import { useJob } from '@/hooks/useJob';
 import { getAvailability, updateAvailability } from '@/services/availability';
 import { subscribeToOpenJobRequests } from '@/services/jobs';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { distanceKm, normalizeGeoPoint } from '@/utils/geo';
+import { distanceKm, normalizeGeoPoint, reverseGeocode, toWktPoint } from '@/utils/geo';
 
 /* ── Hero header card ─────────────────────────────────────────────── */
 function HeroHeader({
@@ -489,6 +489,7 @@ export default function Dashboard() {
   const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
   const { openRequestsQuery, jobsQuery } = useJob({ proId: profile?.id, openRequests: true });
   const [busy, setBusy] = useState(false);
+  const [proAddress, setProAddress] = useState<string | null>(null);
 
   // Source-of-truth: pro_availability row.
   const availabilityQuery = useQuery({
@@ -517,6 +518,33 @@ export default function Dashboard() {
     }, [])
   );
 
+  // Reverse-geocode the pro's saved location so we can show *where* they're
+  // currently working from. Cached by the coords so we don't burn quota when
+  // the dashboard re-renders.
+  useEffect(() => {
+    const point = normalizeGeoPoint(proDetailsQuery.data?.current_location);
+    if (!point) {
+      setProAddress(null);
+      return;
+    }
+    let cancelled = false;
+    reverseGeocode(point)
+      .then((addr) => {
+        if (!cancelled && addr) {
+          // Trim down to the most readable portion ("Locality, City").
+          const parts = addr.split(',').map((s) => s.trim());
+          const concise = parts.slice(0, 2).join(', ');
+          setProAddress(concise || addr);
+        }
+      })
+      .catch(() => {
+        // Silent — the proLocation pill just doesn't appear if Google rejects.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [proDetailsQuery.data?.current_location]);
+
   const toggleOnline = async () => {
     if (!profile?.id || busy) return;
     setBusy(true);
@@ -535,10 +563,10 @@ export default function Dashboard() {
         await updateProDetails({
           id: profile.id,
           data: {
-            current_location: {
-              type: 'Point',
-              coordinates: [current.coords.longitude, current.coords.latitude],
-            },
+            current_location: toWktPoint({
+              latitude: current.coords.latitude,
+              longitude: current.coords.longitude,
+            }) as unknown as never,
           },
         });
         await updateAvailability({
@@ -576,19 +604,53 @@ export default function Dashboard() {
 
   const proLocation = normalizeGeoPoint(proDetailsQuery.data?.current_location);
   const serviceRadiusKm = proDetailsQuery.data?.service_radius_km ?? 10;
-  const openRequests = useMemo(() => {
-    const requests = openRequestsQuery.data ?? [];
-    if (!proLocation) return requests;
-    return requests.filter((job) => {
+  // Keep requests with unparseable job_location visible so we never silently
+  // drop a booking from the pro's queue — the request screen will show the
+  // address text and the pro can still accept.
+  const { openRequests, nearbyOutsideRadius } = useMemo(() => {
+    const raw = openRequestsQuery.data ?? [];
+    // Hide requests this pro has already declined or previously accepted &
+    // cancelled — otherwise the same job keeps popping back into their queue
+    // and "decline" appears to do nothing.
+    const myId = profile?.id;
+    const requests = myId
+      ? raw.filter((job) => {
+          const meta = (job?.ai_raw_response as any) ?? {};
+          const declines = (meta.declines as string[] | undefined) ?? [];
+          const previous = (meta.previous_pros as string[] | undefined) ?? [];
+          return !declines.includes(myId) && !previous.includes(myId);
+        })
+      : raw;
+
+    if (!proLocation) {
+      return { openRequests: requests, nearbyOutsideRadius: 0 };
+    }
+    const inside: typeof requests = [];
+    let outside = 0;
+    let closestOutsideKm = Number.POSITIVE_INFINITY;
+    for (const job of requests) {
       const jobLocation = normalizeGeoPoint(job.job_location);
-      if (!jobLocation) return false;
-      return distanceKm(proLocation, jobLocation) <= serviceRadiusKm;
-    });
+      if (!jobLocation) {
+        inside.push(job);
+        continue;
+      }
+      const d = distanceKm(proLocation, jobLocation);
+      if (d <= serviceRadiusKm) {
+        inside.push(job);
+      } else if (d <= serviceRadiusKm * 2) {
+        // Only count jobs *just* outside the radius (up to 2×) — anything
+        // further is genuinely out of reach and would be noise here.
+        outside += 1;
+        if (d < closestOutsideKm) closestOutsideKm = d;
+      }
+    }
+    return { openRequests: inside, nearbyOutsideRadius: outside };
   }, [
     openRequestsQuery.data,
     proLocation?.latitude,
     proLocation?.longitude,
     serviceRadiusKm,
+    profile?.id,
   ]);
   const todayJobs = useMemo(
     () =>
@@ -629,6 +691,31 @@ export default function Dashboard() {
         />
 
         <View style={{ paddingHorizontal: 20, gap: 18, marginTop: 18 }}>
+          {proAddress && isOnline ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                backgroundColor: Colors.white,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: Colors.border,
+                alignSelf: 'flex-start',
+              }}
+            >
+              <Ionicons name="location" size={13} color={Colors.amber.dark} />
+              <Text style={{ fontSize: 12, color: Colors.text.primary, fontWeight: '600' }}>
+                {proAddress}
+              </Text>
+              <Text style={{ fontSize: 11, color: Colors.midGray, fontWeight: '600' }}>
+                · {serviceRadiusKm}km radius
+              </Text>
+            </View>
+          ) : null}
+
           {/* Stats grid */}
           <View style={{ gap: 12 }}>
             <Text style={{ fontSize: 13, fontWeight: '800', color: Colors.text.primary, letterSpacing: 0.5, marginLeft: 4, marginBottom: 2 }}>
@@ -678,25 +765,48 @@ export default function Dashboard() {
                 </Text>
               </View>
             ) : openRequests.length === 0 ? (
-              <View
-                style={{
-                  backgroundColor: Colors.white,
-                  borderRadius: 16,
-                  padding: 28,
-                  alignItems: 'center',
-                  gap: 10,
-                  borderWidth: 1,
-                  borderColor: Colors.border,
-                  borderStyle: 'dashed',
-                }}
-              >
-                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.navy.primary + '10', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="hourglass-outline" size={24} color={Colors.navy.primary} />
+              <View style={{ gap: 10 }}>
+                <View
+                  style={{
+                    backgroundColor: Colors.white,
+                    borderRadius: 16,
+                    padding: 28,
+                    alignItems: 'center',
+                    gap: 10,
+                    borderWidth: 1,
+                    borderColor: Colors.border,
+                    borderStyle: 'dashed',
+                  }}
+                >
+                  <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.navy.primary + '10', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="hourglass-outline" size={24} color={Colors.navy.primary} />
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.text.primary }}>No incoming requests</Text>
+                  <Text style={{ fontSize: 12, color: Colors.midGray, textAlign: 'center' }}>
+                    We'll notify you the moment a customer books a slot near you.
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.text.primary }}>No incoming requests</Text>
-                <Text style={{ fontSize: 12, color: Colors.midGray, textAlign: 'center' }}>
-                  We'll notify you the moment a customer books a slot near you.
-                </Text>
+                {nearbyOutsideRadius > 0 ? (
+                  <Pressable
+                    onPress={() => router.push('/(pro)/profile')}
+                    style={{
+                      backgroundColor: Colors.amber.light,
+                      borderRadius: 14,
+                      padding: 14,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      borderWidth: 1,
+                      borderColor: Colors.amber.primary + '60',
+                    }}
+                  >
+                    <Ionicons name="location-outline" size={18} color={Colors.amber.dark} />
+                    <Text style={{ flex: 1, color: Colors.amber.text, fontSize: 12, fontWeight: '600' }}>
+                      {nearbyOutsideRadius} request{nearbyOutsideRadius > 1 ? 's' : ''} just outside your {serviceRadiusKm}km radius. Expand it to reach them.
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={Colors.amber.dark} />
+                  </Pressable>
+                ) : null}
               </View>
             ) : (
               openRequests.map((job, index) => (

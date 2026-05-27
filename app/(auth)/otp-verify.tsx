@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getProfile, getProDetails, upsertProDetails } from '@/services/profile';
 import { useAuthStore } from '@/stores/authStore';
 import { isFullNameMissing } from '@/utils/profile';
+import { friendlyAuthError } from '@/utils/authErrors';
 
 const Theme = {
   navy: '#0F2057',
@@ -38,7 +39,14 @@ export default function OtpVerify() {
   const [showRoleSheet, setShowRoleSheet] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputs = useRef<Array<TextInput | null>>([]);
+
+  const resetOtp = () => {
+    setOtp(['', '', '', '', '', '']);
+    inputs.current[0]?.focus();
+  };
 
   const maskedPhone = useMemo(() => {
     if (!phone) {
@@ -73,12 +81,24 @@ export default function OtpVerify() {
 
   const handleVerify = async () => {
     const token = otp.join('');
-    if (token.length !== 6 || !phone) {
+    if (token.length !== 6 || !phone || verifying) {
       return;
     }
 
-    const session = await verifyOtp({ phone: `+91${phone}`, token });
+    setVerifying(true);
+    let session: Awaited<ReturnType<typeof verifyOtp>> | null = null;
+    try {
+      session = await verifyOtp({ phone: `+91${phone}`, token });
+    } catch (err) {
+      const { title, message } = friendlyAuthError(err);
+      Alert.alert(title, message);
+      resetOtp();
+      setVerifying(false);
+      return;
+    }
+
     if (!session?.user?.id) {
+      setVerifying(false);
       return;
     }
 
@@ -87,6 +107,11 @@ export default function OtpVerify() {
 
     try {
       const existingProfile = await getProfile(userId);
+      if (!existingProfile) {
+        // Brand-new auth user with no profile row yet — ask for role.
+        setShowRoleSheet(true);
+        return;
+      }
       setProfile(existingProfile);
       if (isFullNameMissing(existingProfile.full_name)) {
         router.replace('/(auth)/name');
@@ -98,16 +123,28 @@ export default function OtpVerify() {
       }
 
       if (existingProfile.role === 'pro') {
-        const proDetails = await getProDetails(userId);
-        if (proDetails.onboarding_step && proDetails.onboarding_step !== 'complete') {
-          router.replace(`/(pro)/onboarding/${proDetails.onboarding_step}`);
-          return;
+        try {
+          const proDetails = await getProDetails(userId);
+          if (proDetails?.onboarding_step && proDetails.onboarding_step !== 'complete') {
+            router.replace(`/(pro)/onboarding/${proDetails.onboarding_step}`);
+            return;
+          }
+        } catch {
+          // Fall through to dashboard when pro details lookup fails.
         }
         router.replace('/(pro)/dashboard');
         return;
       }
-    } catch (error) {
+
+      // Profile exists but has an unrecognised role — fall back to role picker.
       setShowRoleSheet(true);
+    } catch (err) {
+      // Profile lookup failed — likely RLS or transient network. Let the user
+      // pick a role so we can try to create the profile and keep moving.
+      console.warn('[auth] profile lookup after OTP failed', err);
+      setShowRoleSheet(true);
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -118,27 +155,42 @@ export default function OtpVerify() {
 
     setShowRoleSheet(false);
 
-    const createdProfile = await createProfile({
-      id: pendingSessionId,
-      role,
-      phone_number: `+91${phone}`,
-      full_name: 'New User'
-    });
-    setProfile(createdProfile);
+    try {
+      const createdProfile = await createProfile({
+        id: pendingSessionId,
+        role,
+        phone_number: `+91${phone}`,
+        full_name: 'New User'
+      });
+      setProfile(createdProfile);
 
-    if (role === 'pro') {
-      await upsertProDetails({ pro_id: pendingSessionId });
+      if (role === 'pro') {
+        await upsertProDetails({ pro_id: pendingSessionId });
+      }
+
+      router.replace('/(auth)/name');
+    } catch (err) {
+      // Re-open the sheet so the user isn't stranded after a failure.
+      const { title, message } = friendlyAuthError(err);
+      Alert.alert(title, message);
+      setShowRoleSheet(true);
     }
-
-    router.replace('/(auth)/name');
   };
 
   const handleResend = async () => {
-    if (!phone || timer > 0) {
+    if (!phone || timer > 0 || resending) {
       return;
     }
-    setTimer(30);
-    await signInWithOtp(`+91${phone}`);
+    setResending(true);
+    try {
+      await signInWithOtp(`+91${phone}`);
+      setTimer(30);
+    } catch (err) {
+      const { title, message } = friendlyAuthError(err);
+      Alert.alert(title, message);
+    } finally {
+      setResending(false);
+    }
   };
 
   const RoleOption = ({
@@ -273,9 +325,9 @@ export default function OtpVerify() {
                 <Text style={{ color: Theme.textLight, fontSize: 12 }}>
                   {timer > 0 ? `Resend in 0:${timer.toString().padStart(2, '0')}` : 'Did not receive the code?'}
                 </Text>
-                <Pressable onPress={handleResend} disabled={timer > 0}>
-                  <Text style={{ color: timer > 0 ? Theme.textLight : Theme.navy, fontWeight: '700', fontSize: 12 }}>
-                    Resend
+                <Pressable onPress={handleResend} disabled={timer > 0 || resending}>
+                  <Text style={{ color: timer > 0 || resending ? Theme.textLight : Theme.navy, fontWeight: '700', fontSize: 12 }}>
+                    {resending ? 'Sending...' : 'Resend'}
                   </Text>
                 </Pressable>
               </View>
@@ -283,7 +335,7 @@ export default function OtpVerify() {
           </View>
         </ScrollView>
         <View style={{ padding: 20 }}>
-          <Button onPress={handleVerify} disabled={otp.join('').length !== 6}>
+          <Button onPress={handleVerify} disabled={otp.join('').length !== 6 || verifying} loading={verifying}>
             Verify & continue
           </Button>
         </View>
