@@ -33,7 +33,7 @@ const sizeStyles: Record<
   }
 > = {
   sm: {
-    height: 56,
+    height: 50,
     paddingHorizontal: 24,
     fontSize: 15,
     borderRadius: 28,
@@ -41,7 +41,7 @@ const sizeStyles: Record<
   },
 
   md: {
-    height: 64,
+    height: 58,
     paddingHorizontal: 28,
     fontSize: 17,
     borderRadius: 32,
@@ -49,7 +49,7 @@ const sizeStyles: Record<
   },
 
   lg: {
-    height: 74,
+    height: 60,
     paddingHorizontal: 32,
     fontSize: 18,
     borderRadius: 37,

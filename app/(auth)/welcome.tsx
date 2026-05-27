@@ -50,32 +50,20 @@ const FeatureRow = ({
   title: string;
   description: string;
 }) => (
-  <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-    <View
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: Theme.amberLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: `${Theme.amber}30`
-      }}
-    >
-      <Ionicons name={icon as any} size={20} color={Theme.navy} />
-    </View>
+  <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center', paddingVertical: 2 }}>
+    <Ionicons name={icon as any} size={28} color={Theme.textDark} />
     <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>
+      <Text style={{ fontSize: 16, fontWeight: '700', color: Theme.textDark }}>
         {title}
       </Text>
-      <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 2, lineHeight: 17 }}>
+      <Text style={{ fontSize: 13, color: Theme.textMid, marginTop: 3, lineHeight: 20 }}>
         {description}
       </Text>
     </View>
-    <Ionicons name="chevron-forward" size={14} color={Theme.textLight} />
   </View>
 );
+
+const avatarColors = [Theme.textMid, Theme.navyMid, Theme.amber];
 
 export default function Welcome() {
   const router = useRouter();
@@ -116,7 +104,6 @@ export default function Welcome() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Theme.cream }} edges={['top']}>
 
-      {/* ── Scrollable body ── */}
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 8 }}
         showsVerticalScrollIndicator={false}
@@ -126,8 +113,8 @@ export default function Welcome() {
           colors={[Theme.navy, Theme.navyMid]}
           style={{
             paddingHorizontal: 24,
-            paddingTop: 24,
-            paddingBottom: 64,
+            paddingTop: 36,
+            paddingBottom: 88,
             borderBottomLeftRadius: 36,
             borderBottomRightRadius: 36
           }}
@@ -136,19 +123,16 @@ export default function Welcome() {
             <Animated.View style={{ transform: [{ scale: logoScale }] }}>
               <View
                 style={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: 28,
-                  backgroundColor: 'rgba(255,255,255,0.12)',
+                  width: 118,
+                  height: 118,
+                  borderRadius: 30,
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1.5,
-                  borderColor: 'rgba(255,255,255,0.18)'
+                  justifyContent: 'center'
                 }}
               >
                 <Image
                   source={logoSource}
-                  style={{ width: 62, height: 62 }}
+                  style={{ width: 78, height: 78, borderRadius: 20 }}
                   resizeMode="contain"
                 />
               </View>
@@ -163,45 +147,47 @@ export default function Welcome() {
             >
               <Text
                 style={{
-                  fontSize: 30,
+                  fontSize: 36,
                   fontWeight: '800',
                   color: Theme.white,
-                  marginTop: 18,
-                  letterSpacing: 0.3
+                  marginTop: 20,
+                  letterSpacing: 0.4
                 }}
               >
-                Zapfix
+                ZapFix
               </Text>
               <View
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
-                  marginTop: 6
+                  gap: 8,
+                  marginTop: 8
                 }}
               >
                 <View
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 3.5,
                     backgroundColor: Theme.amber
                   }}
                 />
                 <Text
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     color: 'rgba(255,255,255,0.65)',
-                    letterSpacing: 0.4
+                    letterSpacing: 1.8,
+                    fontWeight: '600',
+                    textTransform: 'uppercase'
                   }}
                 >
                   Diagnosed First. Fixed Right.
                 </Text>
                 <View
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 3,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 3.5,
                     backgroundColor: Theme.amber
                   }}
                 />
@@ -211,13 +197,14 @@ export default function Welcome() {
         </LinearGradient>
 
         {/* ── Cards ── */}
-        <View style={{ marginTop: -36, paddingHorizontal: 20, gap: 14 }}>
+        <View style={{ marginTop: -48, paddingHorizontal: 20, gap: 14 }}>
+
           {/* Features card */}
           <View
             style={{
               backgroundColor: Theme.creamCard,
-              borderRadius: 22,
-              padding: 20,
+              borderRadius: 24,
+              padding: 24,
               borderWidth: 1,
               borderColor: Theme.border,
               shadowColor: Theme.navy,
@@ -225,31 +212,30 @@ export default function Welcome() {
               shadowRadius: 16,
               shadowOffset: { width: 0, height: 8 },
               elevation: 4,
-              gap: 16
+              gap: 20
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View
                 style={{
-                  width: 4,
-                  height: 18,
-                  borderRadius: 2,
+                  width: 5,
+                  height: 32,
+                  borderRadius: 3,
                   backgroundColor: Theme.amber
                 }}
               />
               <Text
                 style={{
-                  fontSize: 15,
+                  fontSize: 20,
                   fontWeight: '800',
                   color: Theme.textDark,
-                  letterSpacing: 0.2
+                  letterSpacing: 0.2,
+                  lineHeight: 26
                 }}
               >
-                Why customers choose us
+                {'Why customers\nchoose us'}
               </Text>
             </View>
-
-            <View style={{ height: 1, backgroundColor: Theme.border, marginHorizontal: -4 }} />
 
             {features.map((item, index) => (
               <View key={item.title}>
@@ -259,8 +245,7 @@ export default function Welcome() {
                     style={{
                       height: 1,
                       backgroundColor: Theme.border,
-                      marginTop: 16,
-                      marginHorizontal: 4
+                      marginTop: 20
                     }}
                   />
                 )}
@@ -268,90 +253,50 @@ export default function Welcome() {
             ))}
           </View>
 
-          {/* Live tracking card */}
-          <LinearGradient
-            colors={[Theme.navy, Theme.navyMid]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+          {/* Joined by pill */}
+          <View
             style={{
-              borderRadius: 22,
-              padding: 20,
+              backgroundColor: Theme.creamCard,
+              borderRadius: 50,
+              paddingHorizontal: 18,
+              paddingVertical: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 25,
+              borderWidth: 1,
+              borderColor: Theme.border,
               shadowColor: Theme.navy,
-              shadowOpacity: 0.2,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 6 },
-              elevation: 4
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 2
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  backgroundColor: 'rgba(245,184,0,0.18)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: 'rgba(245,184,0,0.28)'
-                }}
-              >
-                <Ionicons name="navigate" size={20} color={Theme.amber} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: '800',
-                    color: Theme.white,
-                    letterSpacing: 0.2
-                  }}
-                >
-                  Live tracking included
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,0.62)',
-                    marginTop: 5,
-                    lineHeight: 18
-                  }}
-                >
-                  Real-time job status, ETA, and technician details — all in one place.
-                </Text>
-              </View>
-            </View>
-
-            {/* Stat pills */}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              {[
-                { label: '10k+ Jobs', icon: 'checkmark-done' },
-                { label: '4.9 ★ Rating', icon: 'star' },
-                { label: '< 60 min', icon: 'time' }
-              ].map((stat) => (
+            <View style={{ flexDirection: 'row', width: 72 }}>
+              {avatarColors.map((color, i) => (
                 <View
-                  key={stat.label}
+                  key={i}
                   style={{
-                    flex: 1,
-                    flexDirection: 'row',
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: color,
+                    borderWidth: 2,
+                    borderColor: Theme.white,
+                    marginLeft: i === 0 ? 0 : -12,
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    borderRadius: 10,
-                    paddingVertical: 8,
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.12)'
+                    justifyContent: 'center'
                   }}
                 >
-                  <Ionicons name={stat.icon as any} size={11} color={Theme.amber} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: Theme.white }}>
-                    {stat.label}
-                  </Text>
+                  <Ionicons name="person" size={16} color={Theme.white} />
                 </View>
               ))}
             </View>
-          </LinearGradient>
+            <Text style={{ fontSize: 13, color: Theme.textDark, fontWeight: '600', flex: 1 }}>
+              Joined by 1k+ local homeowners
+            </Text>
+          </View>
+
         </View>
       </ScrollView>
 
@@ -366,6 +311,17 @@ export default function Welcome() {
         <Button size="lg" onPress={() => router.push('/(auth)/phone-entry')}>
           Continue with phone
         </Button>
+        <Text
+          style={{
+            textAlign: 'center',
+            marginTop: 12,
+            fontSize: 12,
+            color: Theme.textMid
+          }}
+        >
+          By continuing, you agree to our{' '}
+          <Text style={{ color: Theme.amber, fontWeight: '600' }}>Terms of Service</Text>
+        </Text>
       </View>
 
     </SafeAreaView>

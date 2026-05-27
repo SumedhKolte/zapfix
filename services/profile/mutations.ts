@@ -44,7 +44,8 @@ export const upsertProDetails = async (payload: TablesInsert<'pro_details'>) => 
 
 export const updateProDetails = async (proId: string, payload: ProDetailsUpdate) => {
   // Handle geometry data specially for PostGIS
-  const processedPayload: Record<string, unknown> = { ...payload };
+  const { onboarding_step, ...restPayload } = payload as ProDetailsUpdate & { onboarding_step?: unknown };
+  const processedPayload: Record<string, unknown> = { ...restPayload };
   
   if (payload.current_location && typeof payload.current_location === 'object') {
     // Convert GeoJSON Point to PostGIS format using ST_GeomFromGeoJSON

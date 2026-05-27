@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { uploadKycDocument } from '@/services/uploads';
+import { deleteKycDocuments, uploadKycDocument } from '@/services/uploads';
 
 export default function Identity() {
   const router = useRouter();
@@ -24,8 +24,17 @@ export default function Identity() {
   const [selfie, setSelfie] = useState<string | null>(null);
   const [aadhaarFrontPath, setAadhaarFrontPath] = useState<string | null>(null);
   const [aadhaarBackPath, setAadhaarBackPath] = useState<string | null>(null);
+  const [selfiePath, setSelfiePath] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const originalNameRef = useRef(profile?.full_name ?? '');
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      originalNameRef.current = profile.full_name;
+      setFullName(profile.full_name);
+    }
+  }, [profile?.full_name]);
 
   const uploadImage = async (
     source: 'camera' | 'library',
@@ -85,13 +94,23 @@ export default function Identity() {
           aadhaar_ref: [aadhaarFrontPath, aadhaarBackPath].filter(Boolean).join('|') || null,
           kyc_status: 'pending',
           liveness_verified: Boolean(selfie),
-          onboarding_step: 'skills'
         }
       });
 
       router.replace('/(pro)/onboarding/skills');
     } catch (err) {
       console.error('Could not save identity step', err);
+      await Promise.allSettled([
+        deleteKycDocuments([aadhaarFrontPath, aadhaarBackPath, selfiePath]),
+        updateProfile({ id: profile.id, data: { full_name: originalNameRef.current } }),
+      ]);
+      setFullName(originalNameRef.current);
+      setAadhaarFront(null);
+      setAadhaarBack(null);
+      setSelfie(null);
+      setAadhaarFrontPath(null);
+      setAadhaarBackPath(null);
+      setSelfiePath(null);
       Alert.alert('Could not save', 'Please check your connection and try again.');
     } finally {
       setSaving(false);
@@ -154,7 +173,10 @@ export default function Identity() {
             variant="secondary"
             loading={uploading === 'selfie'}
             disabled={Boolean(uploading)}
-            onPress={() => uploadImage('camera', 'selfie', 'selfie.jpg', (uri) => setSelfie(uri))}
+            onPress={() => uploadImage('camera', 'selfie', 'selfie.jpg', (uri, path) => {
+                setSelfie(uri);
+                setSelfiePath(path);
+              })}
           >
             {selfie ? 'Selfie Captured' : 'Take a Selfie'}
           </Button>

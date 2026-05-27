@@ -52,6 +52,19 @@ const getSignedUrl = async (bucket: string, path: string, expiresInSeconds = 600
   return data.signedUrl;
 };
 
+const deleteStoredFiles = async (bucket: string, paths: Array<string | null | undefined>) => {
+  const cleanedPaths = paths.filter((path): path is string => Boolean(path));
+
+  if (cleanedPaths.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.storage.from(bucket).remove(cleanedPaths);
+  if (error) {
+    throw error;
+  }
+};
+
 export const uploadJobMedia = async (jobId: string, uri: string, fileName: string) => {
   const optimizedUri = await compressImage(uri);
   const path = `jobs/${jobId}/${fileName}`;
@@ -70,4 +83,8 @@ export const uploadAvatar = async (userId: string, uri: string) => {
   const path = `${userId}/avatar.jpg`;
   const storedPath = await uploadBlob('avatars', path, optimizedUri, 'image/jpeg');
   return getPublicUrl('avatars', storedPath);
+};
+
+export const deleteKycDocuments = async (paths: Array<string | null | undefined>) => {
+  return deleteStoredFiles('kyc-docs', paths);
 };
