@@ -14,6 +14,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/lib/supabase';
 import { selectInterviewQuestions, type MCQQuestion } from '@/lib/interviewQuestions';
+import { gradeInterview } from '@/lib/gemini';
+import { parseInterview } from '@/utils/ai/parseInterview';
+import type { InterviewResponse } from '@/utils/ai/validators';
 
 type Answer = {
   question: MCQQuestion;
@@ -149,29 +152,61 @@ export default function Interview() {
         (a) => a.selectedOptionId === a.question.correctOptionId
       ).length;
       const total = answers.length || 1;
-      const pct = Math.round((correct / total) * 100);
-      const ten = Math.max(1, Math.round((correct / total) * 10));
+      const localScore = Math.max(1, Math.round((correct / total) * 10));
 
-      let fb = '';
-      if (pct >= 90) fb = "Outstanding. You're ready for premium jobs.";
-      else if (pct >= 70) fb = 'Great work — you cleared the bar for live jobs.';
-      else if (pct >= 50) fb = "You're on track. Review the explanations and retake any time.";
-      else fb = "Some core areas need brushing up. Don't worry — you can retake the test.";
+      const transcript = answers.map((a) => {
+        const selected = a.question.options.find((o) => o.id === a.selectedOptionId);
+        const correctOption = a.question.options.find((o) => o.id === a.question.correctOptionId);
+        return {
+          question: a.question.prompt,
+          answer: [
+            selected ? `Selected: ${selected.text}` : 'No answer selected',
+            correctOption ? `Expected answer: ${correctOption.text}` : '',
+            a.note ? `Worker note: ${a.note}` : '',
+          ].filter(Boolean).join('\n'),
+        };
+      });
 
-      setScore(ten);
+      let aiResult: InterviewResponse | null = null;
+      try {
+        const response = await gradeInterview(transcript);
+        const parsed = parseInterview(response.data);
+        if (parsed.success) {
+          aiResult = parsed.data;
+        }
+      } catch (err) {
+        console.warn('AI interview grading unavailable, using local score', err);
+      }
+
+      const aiScore = aiResult ? Math.max(1, Math.min(10, Math.round(aiResult.score))) : localScore;
+      let fb = aiResult?.feedback ?? '';
+      if (!fb) {
+        if (aiScore >= 9) fb = "Outstanding. You're ready for premium jobs.";
+        else if (aiScore >= 7) fb = 'Great work. You cleared the bar for live jobs.';
+        else if (aiScore >= 5) fb = "You're on track. Review the explanations and retake any time.";
+        else fb = "Some core areas need brushing up. Don't worry, you can retake the test.";
+      }
+
+      setScore(aiScore);
       setFeedback(fb);
 
       await updateProDetails({
         id: profile.id,
         data: {
-          ai_skill_score: pct,
-          interview_transcript: answers.map((a) => ({
-            question_id: a.question.id,
-            prompt: a.question.prompt,
-            selected_option_id: a.selectedOptionId,
-            correct_option_id: a.question.correctOptionId,
-            note: a.note,
-          })) as any,
+          ai_skill_score: aiScore,
+          interview_transcript: {
+            answers: answers.map((a) => ({
+              question_id: a.question.id,
+              prompt: a.question.prompt,
+              selected_option_id: a.selectedOptionId,
+              correct_option_id: a.question.correctOptionId,
+              note: a.note,
+            })),
+            local_score: localScore,
+            ai_result: aiResult,
+            graded_at: new Date().toISOString(),
+          },
+          interview_locked_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
           onboarding_step: 'toolkit',
         },
       });

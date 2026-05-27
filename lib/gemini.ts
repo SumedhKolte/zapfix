@@ -24,7 +24,7 @@ export const gradeInterview = async (transcript: { question: string; answer: str
   });
 };
 
-export const verifyToolkit = async (payload: { storage_url: string; expected_tools: string[] }) => {
+export const verifyToolkit = async (payload: { storage_path: string; expected_tools: string[]; trades?: string[] }) => {
   return supabase.functions.invoke('verify-toolkit', {
     body: payload
   });

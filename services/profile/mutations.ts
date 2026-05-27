@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase';
-import type { TablesInsert, TablesUpdate } from '@/types/database';
+import type { Json, TablesInsert, TablesUpdate } from '@/types/database';
+
+export type ProOnboardingStep = 'identity' | 'skills' | 'interview' | 'toolkit' | 'inventory' | 'complete';
+
+export type ProDetailsUpdate = TablesUpdate<'pro_details'> & {
+  onboarding_step?: ProOnboardingStep | null;
+  current_location?: unknown;
+  interview_transcript?: Json | null;
+};
 
 export const createProfile = async (payload: TablesInsert<'profiles'>) => {
   const { data, error } = await supabase.from('profiles').insert(payload).select('*').single();
@@ -34,15 +42,15 @@ export const upsertProDetails = async (payload: TablesInsert<'pro_details'>) => 
   return data;
 };
 
-export const updateProDetails = async (proId: string, payload: TablesUpdate<'pro_details'>) => {
+export const updateProDetails = async (proId: string, payload: ProDetailsUpdate) => {
   // Handle geometry data specially for PostGIS
-  const processedPayload = { ...payload };
+  const processedPayload: Record<string, unknown> = { ...payload };
   
   if (payload.current_location && typeof payload.current_location === 'object') {
     // Convert GeoJSON Point to PostGIS format using ST_GeomFromGeoJSON
-    const { data, error } = await supabase.rpc('update_pro_location', {
+    const { error } = await supabase.rpc('update_pro_location', {
       p_pro_id: proId,
-      p_location_geojson: payload.current_location,
+      p_location_geojson: payload.current_location as Json,
     });
     
     if (error) {
@@ -57,7 +65,7 @@ export const updateProDetails = async (proId: string, payload: TablesUpdate<'pro
   if (Object.keys(processedPayload).length > 0) {
     const { data, error } = await supabase
       .from('pro_details')
-      .update(processedPayload)
+      .update(processedPayload as TablesUpdate<'pro_details'>)
       .eq('pro_id', proId)
       .select('*')
       .single();

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ export default function InventorySetup() {
   const { updateProDetails } = useProfile(profile?.id ?? '');
   const partsQuery = useQuery({ queryKey: ['catalog-parts'], queryFn: getCatalogParts });
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
 
   const parts = partsQuery.data ?? [];
 
@@ -34,13 +35,21 @@ export default function InventorySetup() {
       return;
     }
 
-    const items = Object.entries(quantities)
-      .filter(([, qty]) => qty > 0)
-      .map(([partId, qty]) => ({ pro_id: profile.id, part_id: partId, quantity: qty }));
+    setSaving(true);
+    try {
+      const items = Object.entries(quantities)
+        .filter(([, qty]) => qty > 0)
+        .map(([partId, qty]) => ({ pro_id: profile.id, part_id: partId, quantity: qty }));
 
-    await upsertInventory(items);
-    await updateProDetails({ id: profile.id, data: { onboarding_step: 'complete' } });
-    router.replace('/(pro)/dashboard');
+      await upsertInventory(items);
+      await updateProDetails({ id: profile.id, data: { onboarding_step: 'complete' } });
+      router.replace('/(pro)/dashboard');
+    } catch (err) {
+      console.error('Could not save inventory', err);
+      Alert.alert('Could not save', 'Please check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -56,10 +65,22 @@ export default function InventorySetup() {
         </Text>
 
         <View style={{ gap: 8 }}>
-          {parts.map((part) => (
+          {partsQuery.isLoading ? (
+            <Text style={{ color: Colors.midGray }}>Loading starter parts…</Text>
+          ) : parts.length === 0 ? (
+            <View style={{ backgroundColor: Colors.lightGray, borderRadius: 14, padding: 16 }}>
+              <Text style={{ color: Colors.navy.primary, fontWeight: '700' }}>No starter parts found</Text>
+              <Text style={{ color: Colors.midGray, marginTop: 4 }}>
+                You can complete setup now and add inventory later from the Inventory tab.
+              </Text>
+            </View>
+          ) : parts.map((part) => (
             <InventoryItem
               key={part.id}
               name={part.part_name}
+              category={part.category}
+              partNumber={part.part_number}
+              averagePrice={part.avg_price_inr}
               quantity={quantities[part.id] ?? 0}
               onIncrement={() => handleChange(part.id, 1)}
               onDecrement={() => handleChange(part.id, -1)}
@@ -67,7 +88,9 @@ export default function InventorySetup() {
           ))}
         </View>
 
-        <Button onPress={handleComplete}>Complete Setup</Button>
+        <Button onPress={handleComplete} loading={saving} disabled={saving}>
+          Complete Setup
+        </Button>
       </ScrollView>
     </SafeAreaView>
   );

@@ -91,7 +91,6 @@ export default function Identity() {
         <Text style={{ color: Colors.midGray }}>Required by law for home service professionals</Text>
 
         <Input label="Full name" value={fullName} onChangeText={setFullName} placeholder="Full name" />
-        <Input label="City" value={city} onChangeText={setCity} placeholder="Select city" />
 
         <Card>
           <Text style={{ fontWeight: '700', color: Colors.navy.primary }}>Aadhaar KYC</Text>

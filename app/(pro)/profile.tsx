@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { ScrollView, Text, View, Pressable, Animated, Alert } from 'react-native';
+import { Image, ScrollView, Text, View, Pressable, Animated, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,7 +36,7 @@ function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = 
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={{
           flexDirection: 'row', alignItems: 'center',
-          paddingHorizontal: 20, paddingVertical: 14,
+          paddingHorizontal: 18, paddingVertical: 14,
           backgroundColor: danger ? '#FFF0F0' : Colors.white,
           borderBottomWidth: 1, borderBottomColor: Colors.border,
           gap: 14,
@@ -73,6 +73,20 @@ function Card({ children, style }: any) {
   return (
     <View style={{ backgroundColor: Colors.white, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, ...style }}>
       {children}
+    </View>
+  );
+}
+
+function ProfileMetric({ label, value, icon, tone = 'navy' }: any) {
+  const color = tone === 'success' ? Colors.success : tone === 'amber' ? Colors.amber.dark : Colors.navy.primary;
+  const bg = tone === 'success' ? Colors.success + '12' : tone === 'amber' ? Colors.amber.light : Colors.navy.primary + '10';
+  return (
+    <View style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 }}>
+      <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icon} size={15} color={color} />
+      </View>
+      <Text style={{ color: Colors.midGray, fontSize: 11, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: Colors.text.primary, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -120,7 +134,7 @@ export default function ProProfile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <Animated.View style={{ opacity: headerAnim }}>
-          <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 44 }}>
+          <LinearGradient colors={[Colors.navy.primary, Colors.navy.light, Colors.blue.primary]} locations={[0, 0.74, 1]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 54 }}>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '700', letterSpacing: 1.4 }}>PROFESSIONAL ACCOUNT</Text>
             <Text style={{ color: Colors.white, fontSize: 22, fontWeight: '800', marginTop: 3 }}>Profile</Text>
           </LinearGradient>
@@ -129,33 +143,43 @@ export default function ProProfile() {
         <View style={{ marginTop: -28, paddingHorizontal: 20 }}>
           <AnimatedRow delay={60}>
             <Card style={{ marginBottom: 0 }}>
-              <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.amber.primary }}>
-                  <Text style={{ color: Colors.amber.primary, fontSize: 22, fontWeight: '800' }}>{initials}</Text>
+              <View style={{ padding: 18, gap: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                  <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: Colors.amber.primary, overflow: 'hidden' }}>
+                    {profile?.avatar_url ? (
+                      <Image source={{ uri: profile.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <Text style={{ color: Colors.amber.primary, fontSize: 22, fontWeight: '800' }}>{initials}</Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.text.primary }}>
+                      {profile?.full_name ?? 'Professional'}
+                    </Text>
+                    <Text style={{ color: Colors.text.secondary, fontSize: 13, marginTop: 2 }}>
+                      {profile?.phone_number ?? '+91 XXXXX XXXXX'}
+                    </Text>
+                    {proDetailsQuery.data?.service_radius_km ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: Colors.amber.primary + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                        <Ionicons name="navigate" size={11} color={Colors.amber.dark} />
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.navy.primary }}>
+                          {proDetailsQuery.data.service_radius_km} km radius
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Pressable
+                    style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: Colors.amber.primary + '80' }}
+                    onPress={() => router.push('/(pro)/edit-profile')}
+                  >
+                    <Ionicons name="pencil" size={14} color={Colors.white} />
+                  </Pressable>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.text.primary }}>
-                    {profile?.full_name ?? 'Professional'}
-                  </Text>
-                  <Text style={{ color: Colors.text.secondary, fontSize: 13, marginTop: 2 }}>
-                    {profile?.phone_number ?? '+91 XXXXX XXXXX'}
-                  </Text>
-                  {proDetailsQuery.data?.service_radius_km ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: Colors.amber.primary + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
-                      <Ionicons name="navigate" size={11} color={Colors.amber.dark} />
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.navy.primary }}>
-                        {proDetailsQuery.data.service_radius_km} km radius
-                      </Text>
-                    </View>
-                  ) : null}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <ProfileMetric label="Skill" value={`${proDetailsQuery.data?.ai_skill_score ?? 0}/10`} icon="star" tone="amber" />
+                  <ProfileMetric label="KYC" value={kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)} icon="shield-checkmark" tone="success" />
+                  <ProfileMetric label="Radius" value={`${proDetailsQuery.data?.service_radius_km ?? 0} km`} icon="navigate" />
                 </View>
-                <Pressable
-                  style={{ height: 40, paddingHorizontal: 14, borderRadius: 14, backgroundColor: Colors.navy.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, borderWidth: 1.5, borderColor: Colors.amber.primary + '80' }}
-                  onPress={() => router.push('/(pro)/edit-profile')}
-                >
-                  <Ionicons name="pencil" size={14} color={Colors.white} />
-                  <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>Edit</Text>
-                </Pressable>
               </View>
             </Card>
           </AnimatedRow>
@@ -173,7 +197,7 @@ export default function ProProfile() {
             <SettingsRow
               icon="star"
               label="Skill Score"
-              sublabel={`${proDetailsQuery.data?.ai_skill_score ?? 0} / 100`}
+              sublabel={`${proDetailsQuery.data?.ai_skill_score ?? 0} / 10`}
               onPress={() => router.push('/(pro)/onboarding/skills')}
             />
             <SettingsRow

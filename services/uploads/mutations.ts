@@ -1,6 +1,16 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { supabase } from '@/lib/supabase';
+
+const base64ToArrayBuffer = (base64: string) => {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
 
 const compressImage = async (uri: string) => {
   const result = await ImageManipulator.manipulateAsync(
@@ -12,10 +22,12 @@ const compressImage = async (uri: string) => {
 };
 
 const uploadBlob = async (bucket: string, path: string, uri: string, contentType: string) => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  const base64 = await FileSystem.readAsStringAsync(uri, {
+    encoding: FileSystem.EncodingType.Base64
+  });
+  const fileData = base64ToArrayBuffer(base64);
 
-  const { data, error } = await supabase.storage.from(bucket).upload(path, blob, {
+  const { data, error } = await supabase.storage.from(bucket).upload(path, fileData, {
     contentType,
     upsert: true
   });

@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase';
 import type { TablesInsert } from '@/types/database';
 
 export const upsertInventory = async (items: TablesInsert<'pro_inventory'>[]) => {
+  if (items.length === 0) return [];
+
   const { data, error } = await supabase.from('pro_inventory').upsert(items).select('*');
   if (error) {
     throw error;
