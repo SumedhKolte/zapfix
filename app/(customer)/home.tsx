@@ -187,11 +187,31 @@ function ActionButton({ icon, label, onPress }: any) {
 function LogoMark() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <Image
-        source={require('../../assets/icon.png')}
-        style={{ width: 34, height: 34, borderRadius: 10 }}
-        resizeMode="contain"
-      />
+      <View style={{ width: 34, height: 34, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            backgroundColor: 'rgba(62, 197, 255, 0.65)',
+            shadowColor: '#3EC5FF',
+            shadowOpacity: 1,
+            shadowRadius: 20,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 10,
+          }}
+        />
+        <View style={{ width: 34, height: 34, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={{ width: 34, height: 34, transform: [{ scale: 1.08 }] }}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
       <Text style={{ color: Theme.white, fontSize: 19, fontWeight: '800', letterSpacing: -0.5 }}>
         ZapFix
       </Text>
@@ -273,7 +293,7 @@ export default function CustomerHome() {
 
             <View>
               <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, fontWeight: '500' }}>
-                {greeting()} 👋
+                {greeting()},
               </Text>
               <Text style={{ color: Theme.white, fontSize: 22, fontWeight: '800', marginTop: 2 }}>
                 {profile?.full_name?.split(' ')[0] ?? 'there'}
@@ -321,9 +341,9 @@ export default function CustomerHome() {
                 Describe it, show it, or just tell us
               </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                <ActionButton icon="camera" label="Photo" onPress={() => router.push('/(customer)/diagnose')} />
-                <ActionButton icon="cloud-upload" label="Upload" onPress={() => router.push('/(customer)/diagnose')} />
-                <ActionButton icon="chatbubble-ellipses" label="Describe" onPress={() => router.push('/(customer)/diagnose')} />
+                <ActionButton icon="camera" label="Photo" onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })} />
+                <ActionButton icon="cloud-upload" label="Upload" onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })} />
+                <ActionButton icon="chatbubble-ellipses" label="Describe" onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })} />
               </View>
             </View>
           </AnimatedCard>
@@ -339,11 +359,7 @@ export default function CustomerHome() {
                 overflow: 'hidden',
               }}
             >
-              <View style={{
-                position: 'absolute', right: -24, top: -24,
-                width: 130, height: 130, borderRadius: 65,
-                backgroundColor: 'rgba(245,184,0,0.12)',
-              }} />
+              {/* amber glow removed */}
               <View style={{
                 position: 'absolute', right: 30, bottom: -30,
                 width: 90, height: 90, borderRadius: 45,
@@ -363,9 +379,22 @@ export default function CustomerHome() {
                 </View>
                 <View style={{
                   backgroundColor: Theme.amber,
-                  borderRadius: 12, padding: 9,
+                  borderRadius: 12,
+                  padding: 9,
+                  position: 'relative',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}>
-                  <Ionicons name="flash" size={20} color={Theme.navy} />
+                  <Ionicons
+                    name="flash"
+                    size={20}
+                    color={Theme.navy}
+                    style={{
+                      textShadowColor: 'rgba(245,184,0,0.95)',
+                      textShadowRadius: 10,
+                      textShadowOffset: { width: 0, height: 0 },
+                    }}
+                  />
                 </View>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.55)', marginTop: 8, fontSize: 13 }}>
@@ -378,7 +407,6 @@ export default function CustomerHome() {
           <AnimatedCard delay={200}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Text style={{ fontSize: 15, fontWeight: '800', color: Theme.textDark }}>Quick Categories</Text>
-              <Text style={{ fontSize: 11, color: Theme.textLight, fontWeight: '600' }}>Pick one to start</Text>
             </View>
 
             <View style={{ gap: 12 }}>
@@ -393,7 +421,7 @@ export default function CustomerHome() {
                       category={category}
                       delay={(rowIndex * 2 + colIndex) * 60}
                       onPress={() =>
-                        router.push({ pathname: '/(customer)/diagnose', params: { category: category.label } })
+                        router.push({ pathname: '/(customer)/diagnose', params: { category: category.label, resetKey: Date.now().toString() } })
                       }
                     />
                   ))}

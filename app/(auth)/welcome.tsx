@@ -130,11 +130,31 @@ export default function Welcome() {
                   justifyContent: 'center'
                 }}
               >
-                <Image
-                  source={logoSource}
-                  style={{ width: 78, height: 78, borderRadius: 20 }}
-                  resizeMode="contain"
-                />
+                <View style={{ width: 78, height: 78, position: 'relative' }}>
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 78,
+                      height: 78,
+                      borderRadius: 20,
+                      backgroundColor: 'rgba(62, 197, 255, 0.65)',
+                      shadowColor: '#3EC5FF',
+                      shadowOpacity: 1,
+                      shadowRadius: 28,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 14
+                    }}
+                  />
+                  <View style={{ width: 78, height: 78, borderRadius: 20, overflow: 'hidden' }}>
+                    <Image
+                      source={logoSource}
+                      style={{ width: 78, height: 78, borderRadius: 20, transform: [{ scale: 1.08 }] }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
               </View>
             </Animated.View>
 

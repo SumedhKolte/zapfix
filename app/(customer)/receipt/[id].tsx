@@ -164,7 +164,7 @@ export default function ReceiptDetail() {
               </View>
               <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>Booking receipt</Text>
               <View style={{ marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 3, backgroundColor: Theme.amberLight, borderRadius: 6 }}>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: Theme.navy }}>#{job.id.slice(-6).toUpperCase()}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: Theme.navy }}>#{job.id.slice(-6).toUpperCase()}</Text>
               </View>
             </View>
 

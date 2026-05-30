@@ -192,7 +192,7 @@ export default function Receipts() {
               Once you book a Pro through the Diagnose flow, your receipts will live here.
             </Text>
             <View style={{ marginTop: 12, width: '80%' }}>
-              <Button onPress={() => router.replace('/(customer)/diagnose')}>Start a diagnosis</Button>
+              <Button onPress={() => router.replace({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })}>Start a diagnosis</Button>
             </View>
           </View>
         ) : (

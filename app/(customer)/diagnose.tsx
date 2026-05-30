@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TextInput, View, Pressable, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -130,7 +130,7 @@ function ProcessingAnimation() {
 
 export default function Diagnose() {
   const router = useRouter();
-  const { category } = useLocalSearchParams<{ category?: string }>();
+  const { category, resetKey } = useLocalSearchParams<{ category?: string; resetKey?: string }>();
   const { profile } = useAuth();
   const { addressesQuery } = useProfile(profile?.id ?? '');
   const { createJob } = useJob({ customerId: profile?.id });
@@ -157,6 +157,7 @@ export default function Diagnose() {
   const stepAnim = useRef(new Animated.Value(0)).current;
   const headerAnim = useRef(new Animated.Value(0)).current;
   const isMountedRef = useRef(true);
+  const lastResetKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -178,6 +179,28 @@ export default function Diagnose() {
   useEffect(() => {
     setSelectedTime(null);
   }, [selectedDate]);
+
+  const resetFlow = useCallback(() => {
+    setStep('capture');
+    setMedia(null);
+    setDiagnosis(null);
+    setError(null);
+    setProblemDescription('');
+    setSelectedAddress(null);
+    setResolvedServiceLocation(null);
+    setResolvingServiceLocation(false);
+    setSelectedDate(dates[0]?.date ?? new Date());
+    setSelectedTime(null);
+    setBookingNote('');
+    setSubmitting(false);
+  }, [dates]);
+
+  useEffect(() => {
+    if (!resetKey) return;
+    if (lastResetKeyRef.current === resetKey) return;
+    lastResetKeyRef.current = resetKey;
+    resetFlow();
+  }, [resetKey, resetFlow]);
 
   useEffect(() => {
     return () => {
@@ -360,7 +383,7 @@ export default function Diagnose() {
 
         await activeRecording.stop();
         await setAudioModeAsync({ allowsRecording: false });
-        const uri = activeRecording.uri ?? activeRecording.getStatus().url;
+        const uri = activeRecording.uri;
         if (!uri) throw new Error('Recording was not saved. Please try again.');
 
         const transcript = await transcribeAudio(uri);

@@ -154,10 +154,11 @@ function OfferCard({ offer }: { offer: typeof OFFERS[number] }) {
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         onPress={() => Alert.alert('Offer Applied', `${offer.desc} has been activated.`)}
         style={{
-          width: 150, backgroundColor: offer.bg,
+          width: 150, height: 120, backgroundColor: offer.bg,
           borderRadius: 16, padding: 14,
           marginRight: 10, borderWidth: 1,
           borderColor: offer.accent + '30',
+          justifyContent: 'flex-start',
         }}
       >
         <View style={{
@@ -167,8 +168,8 @@ function OfferCard({ offer }: { offer: typeof OFFERS[number] }) {
         }}>
           <Ionicons name={offer.icon as any} size={18} color={offer.accent} />
         </View>
-        <Text style={{ fontSize: 17, fontWeight: '800', color: offer.accent }}>{offer.label}</Text>
-        <Text style={{ fontSize: 11, color: Theme.textMid, marginTop: 3, lineHeight: 15 }}>{offer.desc}</Text>
+        <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontSize: 17, fontWeight: '800', color: offer.accent }}>{offer.label}</Text>
+        <Text numberOfLines={2} ellipsizeMode='tail' style={{ fontSize: 11, color: Theme.textMid, marginTop: 3, lineHeight: 15 }}>{offer.desc}</Text>
       </Pressable>
     </Animated.View>
   );

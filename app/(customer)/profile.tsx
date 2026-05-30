@@ -287,7 +287,7 @@ export default function Profile() {
           {upcomingBookings.length === 0 ? (
             <View style={{ paddingHorizontal: 20 }}>
               <Pressable
-                onPress={() => router.push('/(customer)/diagnose')}
+                onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })}
                 style={{
                   backgroundColor: Theme.creamCard, borderRadius: 18, padding: 18,
                   borderWidth: 1, borderColor: Theme.border, borderStyle: 'dashed',

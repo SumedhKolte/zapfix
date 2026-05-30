@@ -170,7 +170,7 @@ export default function Jobs() {
 
       <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 16 }}>
         {filteredJobs.length === 0 ? (
-          <EmptyJobState tab={tab} onPress={() => router.push('/(customer)/diagnose')} />
+          <EmptyJobState tab={tab} onPress={() => router.push({ pathname: '/(customer)/diagnose', params: { resetKey: Date.now().toString() } })} />
         ) : (
           <FlashList
             data={filteredJobs}

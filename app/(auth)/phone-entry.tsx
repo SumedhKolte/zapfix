@@ -3,6 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -104,11 +105,31 @@ export default function PhoneEntry() {
                   justifyContent: 'center'
                 }}
               >
-                <Image
-                  source={logoSource}
-                  style={{ width: 56, height: 56, borderRadius: 14 }}
-                  resizeMode="contain"
-                />
+                <View style={{ width: 56, height: 56, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 56,
+                      height: 56,
+                      borderRadius: 14,
+                      backgroundColor: 'rgba(62, 197, 255, 0.65)',
+                      shadowColor: '#3EC5FF',
+                      shadowOpacity: 1,
+                      shadowRadius: 28,
+                      shadowOffset: { width: 0, height: 0 },
+                      elevation: 14
+                    }}
+                  />
+                  <View style={{ width: 56, height: 56, borderRadius: 14, overflow: 'hidden' }}>
+                    <Image
+                      source={logoSource}
+                      style={{ width: 56, height: 56, borderRadius: 14, transform: [{ scale: 1.08 }] }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </View>
               </View>
             </View>
 
