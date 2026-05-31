@@ -25,6 +25,9 @@ import { supabase } from '@/lib/supabase';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
 import { useJob } from '@/hooks/useJob';
 import { createNotification } from '@/services/notifications';
+import { collectPayment } from '@/services/payments';
+import { removeCashfreeCallbacks } from '@/lib/cashfree';
+import { formatCurrency } from '@/utils/formatCurrency';
 import { geocodeAddress, normalizeGeoPoint, parseAddressText, reverseGeocode, toWktPoint } from '@/utils/geo';
 
 const Theme = {
@@ -163,6 +166,8 @@ export default function Diagnose() {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // Don't leak the Cashfree SDK callback if the user backs out mid-pay.
+      removeCashfreeCallbacks();
     };
   }, []);
 
@@ -507,6 +512,19 @@ export default function Diagnose() {
       Alert.alert('Almost there', 'Pick a date, time slot, and address to confirm.');
       return;
     }
+    if (!profile.phone_number) {
+      Alert.alert('Phone number required', 'Please add your phone number to your profile before paying.');
+      return;
+    }
+    // For the AI-diagnosed flow the final price isn't known yet, so we hold
+    // the customer's estimated minimum as a pre-auth. Any difference is
+    // settled when the Pro marks the job complete.
+    const advancePaise = diagnosis.data.est_cost_min;
+    if (!advancePaise || advancePaise < 100) {
+      Alert.alert('Pricing unavailable', 'We could not determine a booking amount for this diagnosis. Try again.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const addressRow = selectedAddressRow;
@@ -531,6 +549,19 @@ export default function Diagnose() {
         return;
       }
 
+      // 1. Collect payment FIRST. We don't insert the job until money clears
+      //    so we never end up with a paid customer without a job, or a job
+      //    sitting unpaid in the matching queue.
+      const payment = await collectPayment({
+        amountPaise: advancePaise,
+        customerPhone: profile.phone_number,
+        customerName: profile.full_name ?? undefined,
+        note: `Zapfix · ${category ?? 'Diagnosis'} · ${diagnosis.data.fault_name}`,
+      });
+
+      if (!isMountedRef.current) return;
+
+      // 2. Create the job with the payment refs attached.
       const job = await createJob({
         customer_id: profile.id,
         status: 'searching',
@@ -544,12 +575,27 @@ export default function Diagnose() {
             note: bookingNote.trim() || null,
             booked_at: new Date().toISOString(),
           },
+          payment: {
+            provider: 'cashfree',
+            order_id: payment.orderId,
+            payment_id: payment.paymentId,
+            amount_paise: payment.amountPaise,
+            paid_at: new Date().toISOString(),
+            type: 'advance',
+          },
         },
         est_cost_min: diagnosis.data.est_cost_min,
         est_cost_max: diagnosis.data.est_cost_max,
+        escrow_amount: payment.amountPaise,
         address_id: selectedAddress,
         job_location: jobLocation,
-      });
+        cf_order_id: payment.orderId,
+        cf_payment_id: payment.paymentId,
+        payment_status: 'paid',
+        paid_amount: payment.amountPaise,
+        paid_at: new Date().toISOString(),
+        service_category: category ?? null,
+      } as any);
       if (!isMountedRef.current) return;
       await createNotification({
         userId: profile.id,
@@ -562,7 +608,8 @@ export default function Diagnose() {
     } catch (err) {
       if (isMountedRef.current) {
         console.error('Booking failed', err);
-        Alert.alert('Could not confirm booking', getBookingErrorMessage(err));
+        const message = err instanceof Error ? err.message : getBookingErrorMessage(err);
+        Alert.alert('Could not confirm booking', message);
       }
     } finally {
       if (isMountedRef.current) setSubmitting(false);
@@ -972,7 +1019,9 @@ export default function Diagnose() {
                     ? 'Add a service address'
                     : !selectedTime
                       ? 'Select a time slot'
-                      : 'Confirm booking'}
+                      : diagnosis?.success && diagnosis.data.est_cost_min
+                        ? `Pay ${formatCurrency(diagnosis.data.est_cost_min)} & confirm`
+                        : 'Confirm booking'}
                 </Button>
                   </>
                 ) : null}

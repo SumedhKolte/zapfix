@@ -421,7 +421,10 @@ export default function CustomerHome() {
                       category={category}
                       delay={(rowIndex * 2 + colIndex) * 60}
                       onPress={() =>
-                        router.push({ pathname: '/(customer)/diagnose', params: { category: category.label, resetKey: Date.now().toString() } })
+                        router.push({
+                          pathname: '/(customer)/category/[slug]',
+                          params: { slug: encodeURIComponent(category.label) },
+                        })
                       }
                     />
                   ))}

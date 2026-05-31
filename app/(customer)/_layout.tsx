@@ -240,6 +240,8 @@ export default function CustomerLayout() {
       <Tabs.Screen name="legal" options={{ href: null }} />
       <Tabs.Screen name="receipt/[id]" options={{ href: null }} />
       <Tabs.Screen name="receipts" options={{ href: null }} />
+      <Tabs.Screen name="category/[slug]" options={{ href: null }} />
+      <Tabs.Screen name="quick-book" options={{ href: null }} />
     </Tabs>
     <ActiveJobTracker />
     </View>
