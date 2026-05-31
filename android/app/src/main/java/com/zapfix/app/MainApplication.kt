@@ -1,4 +1,4 @@
-package com.zapfix.app
+package com.Sumedh.zapfix
 
 import android.app.Application
 import android.content.res.Configuration

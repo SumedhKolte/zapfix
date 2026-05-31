@@ -1,4 +1,4 @@
-package com.zapfix.app
+package com.Sumedh.zapfix
 
 import android.os.Build
 import android.os.Bundle

@@ -9,7 +9,7 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
-import { Colors } from '@/constants/colors';
+import { ProTheme } from '@/constants/proTheme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -53,12 +53,12 @@ export const CountdownTimer = ({ seconds, onExpire }: CountdownTimerProps) => {
 
   const color = useMemo(() => {
     if (remaining <= 10) {
-      return Colors.error;
+      return ProTheme.colors.error;
     }
     if (remaining <= 30) {
-      return Colors.amber.primary;
+      return ProTheme.colors.amber;
     }
-    return Colors.success;
+    return ProTheme.colors.success;
   }, [remaining]);
 
   const animatedProps = useAnimatedProps(() => ({
@@ -72,7 +72,7 @@ export const CountdownTimer = ({ seconds, onExpire }: CountdownTimerProps) => {
           cx="45"
           cy="45"
           r={radius}
-          stroke={Colors.border}
+          stroke={ProTheme.colors.border}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -88,7 +88,7 @@ export const CountdownTimer = ({ seconds, onExpire }: CountdownTimerProps) => {
           strokeLinecap="round"
         />
       </Svg>
-      <Text style={{ position: 'absolute', fontWeight: '700', color }}>{remaining}</Text>
+      <Text style={{ position: 'absolute', fontWeight: '700', fontSize: 12, color }}>{remaining}</Text>
     </View>
   );
 };

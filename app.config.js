@@ -43,7 +43,7 @@ module.exports = ({ config }) => ({
     }
   },
   android: {
-    package: 'com.zapfix.app',
+    package: 'com.Sumedh.zapfix',
     googleServicesFile: './app/google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',

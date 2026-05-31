@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.zapfix.app'
+    namespace 'com.Sumedh.zapfix'
     defaultConfig {
-        applicationId 'com.zapfix.app'
+        applicationId 'com.Sumedh.zapfix'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
