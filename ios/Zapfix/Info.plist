@@ -28,7 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>zapfix</string>
-				<string>com.zapfix.app</string>
+				<string>com.Sumedh.zapfix</string>
 			</array>
 		</dict>
 		<dict>
