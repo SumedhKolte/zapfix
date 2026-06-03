@@ -21,6 +21,7 @@ module.exports = ({ config }) => ({
     backgroundColor: '#0D1B3E'
   },
   updates: {
+    url: 'https://u.expo.dev/24a75c24-24d5-4662-b99e-b4d513112dd4',
     fallbackToCacheTimeout: 0
   },
   runtimeVersion: appVersion,

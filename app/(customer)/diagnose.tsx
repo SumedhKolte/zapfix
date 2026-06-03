@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { DiagnosisCard } from '@/components/customer/DiagnosisCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { diagnoseImage } from '@/lib/diagnose';
+import { diagnoseImage, diagnoseFrames } from '@/lib/diagnose';
 import { transcribeAudio } from '@/lib/transcribe';
 import { supabase } from '@/lib/supabase';
 import { parseDiagnosis } from '@/utils/ai/parseDiagnosis';
@@ -140,7 +140,7 @@ export default function Diagnose() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [step, setStep] = useState<'capture' | 'processing' | 'result'>('capture');
-  const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video' } | null>(null);
+  const [media, setMedia] = useState<{ uri: string; type: 'image' | 'video'; duration?: number } | null>(null);
   const [diagnosis, setDiagnosis] = useState<ReturnType<typeof parseDiagnosis> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
@@ -315,25 +315,81 @@ export default function Diagnose() {
     // starts from a clean state instead of half-rendering the old diagnosis.
     setDiagnosis(null);
     setError(null);
-    setMedia({ uri: picked.uri, type: isVideo ? 'video' : 'image' });
+    setMedia({
+      uri: picked.uri,
+      type: isVideo ? 'video' : 'image',
+      duration: typeof picked.duration === 'number' ? picked.duration : undefined,
+    });
   };
 
-  // Extract a frame from a video. We try a few timestamps because the very
-  // first second is often dark/blurry while the user is steadying the phone.
-  const extractFrameFromVideo = async (videoUri: string): Promise<string | null> => {
-    const timestamps = [1500, 600, 2500, 250];
-    for (const time of timestamps) {
+  // Open the device camera to shoot a fresh photo or short video on the spot.
+  const handleCapture = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setError('Camera access is needed to take a photo or video. Enable it in Settings.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 1,
+      videoMaxDuration: 30,
+    });
+    if (result.canceled) return;
+
+    const picked = result.assets[0];
+    const isVideo = picked.type === 'video';
+    setDiagnosis(null);
+    setError(null);
+    setMedia({
+      uri: picked.uri,
+      type: isVideo ? 'video' : 'image',
+      duration: typeof picked.duration === 'number' ? picked.duration : undefined,
+    });
+  };
+
+  // Sample several frames spread across the video so Gemini can read it as a
+  // clip (motion, sparks, leaks) instead of one moment. Frames that fail to
+  // extract are skipped; we always try to return at least one.
+  const extractFramesFromVideo = async (
+    videoUri: string,
+    durationMs?: number
+  ): Promise<string[]> => {
+    const dur = durationMs && durationMs > 0 ? durationMs : 12000;
+    const targets = [0.12, 0.38, 0.62, 0.85].map((f) =>
+      Math.max(200, Math.floor(dur * f))
+    );
+
+    const uris: string[] = [];
+    for (const time of targets) {
       try {
         const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
           time,
-          quality: 0.8,
+          quality: 0.7,
         });
-        if (uri) return uri;
+        if (uri) uris.push(uri);
       } catch (err) {
-        console.warn(`Video thumbnail failed at ${time}ms`, err);
+        console.warn(`Video frame failed at ${time}ms`, err);
       }
     }
-    return null;
+
+    // Fallback: if the spread sampling produced nothing (very short clip or odd
+    // codec), grab a single early frame.
+    if (uris.length === 0) {
+      for (const time of [1500, 600, 250]) {
+        try {
+          const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, { time, quality: 0.7 });
+          if (uri) {
+            uris.push(uri);
+            break;
+          }
+        } catch (err) {
+          console.warn(`Fallback frame failed at ${time}ms`, err);
+        }
+      }
+    }
+
+    return uris;
   };
 
   const handleAnalyze = async () => {
@@ -348,22 +404,27 @@ export default function Diagnose() {
     setStep('processing');
 
     try {
-      // Vision models only accept images. For a video, send a frame.
-      let analyzableUri: string | null = media?.uri ?? null;
+      let response;
       if (media?.type === 'video') {
-        const thumbUri = await extractFrameFromVideo(media.uri);
-        if (!thumbUri) {
-          throw new Error('Could not read a frame from that video. Try a shorter clip or a photo.');
+        // Send several frames so Gemini reads the whole clip, not one moment.
+        const frameUris = await extractFramesFromVideo(media.uri, media.duration);
+        if (frameUris.length === 0) {
+          throw new Error('Could not read frames from that video. Try a shorter clip or a photo.');
         }
-        analyzableUri = thumbUri;
+        response = await diagnoseFrames(
+          frameUris,
+          undefined,
+          category ?? undefined,
+          problemDescription
+        );
+      } else {
+        response = await diagnoseImage(
+          media?.uri ?? null,
+          undefined,
+          category ?? undefined,
+          problemDescription
+        );
       }
-
-      const response = await diagnoseImage(
-        analyzableUri,
-        undefined,
-        category ?? undefined,
-        problemDescription
-      );
       if (!isMountedRef.current) return;
       const parsed = parseDiagnosis(response);
       setDiagnosis(parsed);
@@ -720,15 +781,15 @@ export default function Diagnose() {
                     {media ? (
                       <>
                         <Image source={{ uri: media.uri }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="cover" />
-                        <Text style={{ color: Theme.navy, fontWeight: '600', fontSize: 13 }}>Tap to retake</Text>
+                        <Text style={{ color: Theme.navy, fontWeight: '600', fontSize: 13 }}>Tap to pick again from gallery</Text>
                       </>
                     ) : (
                       <>
                         <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Theme.navy + '12', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="camera" size={30} color={Theme.navy} />
+                          <Ionicons name="images" size={28} color={Theme.navy} />
                         </View>
                         <Text style={{ color: Theme.textDark, fontWeight: '700', fontSize: 15 }}>
-                          Select Photo or Video
+                          Add a photo or video
                         </Text>
                         <Text style={{ color: Theme.textMid, fontSize: 12, textAlign: 'center' }}>
                           Tap to choose from your gallery
@@ -736,6 +797,31 @@ export default function Diagnose() {
                       </>
                     )}
                   </Pressable>
+
+                  {/* Camera capture — take a fresh photo or short video on the spot. */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: Theme.border }} />
+                    <Text style={{ color: Theme.textLight, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 }}>OR</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: Theme.border }} />
+                  </View>
+                  <Button
+                    onPress={handleCapture}
+                    style={{
+                      marginTop: 12,
+                      backgroundColor: Theme.navy,
+                      borderRadius: 16,
+                      minHeight: 56,
+                      height: 56,
+                      paddingHorizontal: 20,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Ionicons name="camera" size={20} color={Theme.amber} />
+                      <Text style={{ color: Theme.white, fontWeight: '800', fontSize: 15 }}>
+                        Take a photo or video
+                      </Text>
+                    </View>
+                  </Button>
                 </View>
 
                 <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: Theme.border, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 }}>
@@ -826,15 +912,20 @@ export default function Diagnose() {
             {/* RESULT + BOOKING STEP */}
             {step === 'result' && diagnosis?.success ? (
               <View style={{ gap: 14 }}>
-                <DiagnosisCard
-                  faultName={diagnosis.data.fault_name}
-                  description={diagnosis.data.fault_description}
-                  confidence={diagnosis.data.confidence}
-                  parts={diagnosis.data.required_parts}
-                  costMin={diagnosis.data.est_cost_min}
-                  costMax={diagnosis.data.est_cost_max}
-                  urgency={diagnosis.data.urgency}
-                />
+                {/* Only show the fault + price card when we actually detected a
+                    confident fault. Otherwise there is no real diagnosis to
+                    price, so we must not show a misleading estimate. */}
+                {isDiagnosable ? (
+                  <DiagnosisCard
+                    faultName={diagnosis.data.fault_name}
+                    description={diagnosis.data.fault_description}
+                    confidence={diagnosis.data.confidence}
+                    parts={diagnosis.data.required_parts}
+                    costMin={diagnosis.data.est_cost_min}
+                    costMax={diagnosis.data.est_cost_max}
+                    urgency={diagnosis.data.urgency}
+                  />
+                ) : null}
 
                 {/* If the AI couldn't confidently spot a fault, we don't let
                     the customer book a slot — that would dispatch a Pro for

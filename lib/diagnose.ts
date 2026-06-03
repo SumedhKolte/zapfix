@@ -119,3 +119,48 @@ export const diagnoseImage = async (
     0
   );
 };
+
+// Diagnose a short video by sending several sampled frames. Gemini reasons
+// across the frames as one clip, which is far more reliable than a single
+// thumbnail. Each frame is resized/recompressed the same way a photo is.
+export const diagnoseFrames = async (
+  frameUris: string[],
+  jobId?: string,
+  category?: string,
+  problemDescription?: string
+): Promise<DiagnosisResult> => {
+  const trimmedDescription = problemDescription?.trim();
+
+  const frames: string[] = [];
+  for (const uri of frameUris) {
+    try {
+      const prepared = await prepareImageForUpload(uri);
+      const b64 = await FileSystem.readAsStringAsync(prepared.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      if (b64) frames.push(b64);
+    } catch (err) {
+      console.warn('Frame read failed, skipping', err);
+    }
+  }
+
+  if (frames.length === 0) {
+    throw new Error('Could not read any frames from that video. Try a shorter clip or a photo.');
+  }
+
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    throw new Error('Not authenticated. Please log in again.');
+  }
+
+  return callDiagnoseEndpoint(
+    {
+      frames,
+      job_id: jobId,
+      category,
+      problem_description: trimmedDescription,
+    },
+    session.access_token,
+    0
+  );
+};

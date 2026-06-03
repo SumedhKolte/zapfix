@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.2';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const groqApiKey = Deno.env.get('GROQ_API_KEY') ?? '';
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY') ?? '';
 
 const authClient = (authHeader: string) =>
   createClient(supabaseUrl, supabaseAnonKey, {
@@ -13,9 +13,48 @@ const authClient = (authHeader: string) =>
 
 const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
-const GROQ_TEXT_MODEL = 'llama-3.3-70b-versatile';
+// Google Gemini 2.5 Flash handles both vision (image) and text-only diagnosis.
+// The key is a SERVER-SIDE secret only — never shipped in the app bundle.
+// (gemini-2.0-flash was retired; 2.5-flash is the current stable Flash model.)
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+// Allowed trades — kept in one place so the prompt, the response schema, and the
+// server-side validation can never drift apart.
+const ALLOWED_SKILLS = [
+  'AC Repair',
+  'Electrical',
+  'Plumbing',
+  'Washing Machine Repair',
+  'Refrigerator Repair',
+  'General Appliance',
+] as const;
+
+// Gemini structured-output schema. Forcing this guarantees the model returns a
+// single well-formed JSON object with exactly these detection fields — no
+// markdown, no code fences, no missing keys. Price is computed server-side and
+// is deliberately NOT part of the model output.
+const DIAGNOSIS_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    fault_detected: { type: 'BOOLEAN' },
+    fault_name: { type: 'STRING' },
+    fault_description: { type: 'STRING' },
+    confidence: { type: 'INTEGER' },
+    required_parts: { type: 'ARRAY', items: { type: 'STRING' } },
+    required_skill: { type: 'STRING', enum: [...ALLOWED_SKILLS] },
+    urgency: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+  },
+  required: [
+    'fault_detected',
+    'fault_name',
+    'fault_description',
+    'confidence',
+    'required_parts',
+    'required_skill',
+    'urgency',
+  ],
+} as const;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,56 +62,28 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Detection-only prompt. The model identifies the fault; pricing is computed
+// server-side from a fixed per-category table, and the output shape is enforced
+// by the Gemini responseSchema — so there are no pricing or JSON-format rules
+// here on purpose.
 const SYSTEM_PROMPT = `You are an expert home appliance and AC repair technician with 20 years of field experience in India.
 
-You will receive an image and/or a customer's description. Your job is to identify the most likely fault and produce a reliable repair estimate.
+You receive an image and/or a customer's description. Identify the single most likely fault.
 
-PRIMARY GOAL — RELIABILITY OVER GUESSING:
-- If the image clearly shows a damaged or faulty appliance OR the description names a specific symptom, diagnose it precisely.
-- If the image is unclear, unrelated, blurry, dark, OR the symptom is too vague to diagnose, set fault_detected=false and confidence below 35. Do NOT fabricate a fault.
-- If the photo is just a normal-looking appliance with no visible defect AND no description, fault_detected=false.
+RELIABILITY OVER GUESSING:
+- If the image clearly shows a damaged or faulty appliance, OR the description names a specific symptom, diagnose it precisely.
+- If the image is unclear, unrelated, blurry, dark, OR the symptom is too vague, set fault_detected=false and confidence below 35. Do NOT fabricate a fault.
+- If the photo is a normal-looking appliance with no visible defect AND there is no description, set fault_detected=false.
 
-TEXT STYLE RULES (very important):
-- Write in normal sentence case. NEVER write in ALL CAPS.
-- fault_name: 2–5 words, Title Case. Example: "Capacitor Failure", "Dirty Air Filter", "PCB Fault". NOT "CAPACITOR FAILURE".
-- fault_description: 2–3 plain English sentences. Sentence case. Mention symptoms and likely cause. Do NOT write the price in this field.
-- required_parts: short, lowercase generic part names. Example: ["capacitor", "fan motor"]. NOT ["CAPACITOR"].
+FIELD GUIDANCE:
+- fault_name: 2–5 words in Title Case. Example: "Capacitor Failure", "Dirty Air Filter", "PCB Fault".
+- fault_description: 2–3 plain English sentences naming the symptom and the likely cause. Do not mention price.
+- required_parts: short lowercase generic part names. Example: ["capacitor", "fan motor"].
+- required_skill: pick the single best-matching trade from the allowed list.
+- confidence: integer 0–100.
+- urgency: low, medium, or high.
 
-PRICING RULES (these matter — be precise, do not guess wildly):
-- All money fields are in PAISE (₹ × 100). 80000 paise = ₹800.
-- Build the estimate as: visit_fee + parts_total + labor_fee.
-- visit_fee in India: 20000 paise (₹200) for routine, 30000 (₹300) for heavy.
-- labor_fee: simple swap ~30000 paise (₹300), mid ~60000 (₹600), heavy/PCB/gas ~120000 (₹1200).
-- parts_total: use the price anchors below when available. Otherwise use a conservative India market estimate.
-- Output a SINGLE point estimate, not a wide range. Set est_cost_min and est_cost_max to the SAME value (or within 10% of each other for genuine uncertainty).
-- est_cost_min and est_cost_max are integer paise.
-- All numbers must be plain JSON integers. NOT strings, NOT scientific notation, NOT in words.
-- The same image and description must always produce the same price — do not vary the estimate on re-analysis.
-
-You MUST respond with ONLY a single valid JSON object. No markdown, no code fences, no commentary.
-
-Schema:
-{
-  "fault_detected": <true | false>,
-  "fault_name": "Short Title Case Name",
-  "fault_description": "2-3 plain sentences",
-  "confidence": <integer 0-100>,
-  "required_parts": ["lowercase", "parts"],
-  "required_skill": "AC Repair" | "Electrical" | "Plumbing" | "Washing Machine Repair" | "Refrigerator Repair" | "General Appliance",
-  "est_cost_min": <integer in paise>,
-  "est_cost_max": <integer in paise>,
-  "urgency": "low" | "medium" | "high",
-  "pricing_breakdown": {
-    "visit_fee": <integer in paise>,
-    "parts_total_min": <integer in paise>,
-    "parts_total_max": <integer in paise>,
-    "labor_min": <integer in paise>,
-    "labor_max": <integer in paise>,
-    "notes": "one short sentence explaining the price"
-  }
-}
-
-When fault_detected is false: still return the schema, but set fault_name="Needs Closer Inspection", confidence below 35, urgency="low", and explain in fault_description what the customer should send (clearer photo, model label, error code, etc.). Keep est_cost_min/max as the visit fee only.`;
+When fault_detected is false: set fault_name to "Needs Closer Inspection", confidence below 35, urgency "low", and use fault_description to tell the customer what to send (a clearer photo, the model label, or an error code).`;
 
 const CATEGORY_MAP: Record<string, string> = {
   'ac repair': 'AC',
@@ -91,42 +102,6 @@ const normalizeCategory = (raw?: string | null): string | null => {
   if (!raw) return null;
   const key = raw.trim().toLowerCase();
   return CATEGORY_MAP[key] ?? null;
-};
-
-type PartAnchor = { part_name: string; avg_price_inr: number };
-type CatalogPartRow = { part_name: string | null; avg_price_inr: number | null; category: string | null };
-
-const fetchPartAnchors = async (category: string | null): Promise<PartAnchor[]> => {
-  const query = adminClient
-    .from('catalog_parts')
-    .select('part_name, avg_price_inr, category')
-    .eq('is_active', true)
-    .not('avg_price_inr', 'is', null)
-    .limit(40);
-
-  const { data, error } = category
-    ? await query.eq('category', category)
-    : await query;
-
-  if (error || !data) {
-    if (error) console.warn('catalog_parts fetch failed (non-fatal):', error.message);
-    return [];
-  }
-
-  return (data as CatalogPartRow[])
-    .filter((row): row is { part_name: string; avg_price_inr: number; category: string | null } =>
-      Boolean(row.part_name) && typeof row.avg_price_inr === 'number'
-    )
-    .map((row) => ({ part_name: row.part_name, avg_price_inr: row.avg_price_inr }));
-};
-
-const formatPartAnchors = (parts: PartAnchor[]): string => {
-  if (parts.length === 0) return '';
-  const lines = parts
-    .slice(0, 25)
-    .map((p) => `- ${p.part_name}: ${p.avg_price_inr} paise (₹${(p.avg_price_inr / 100).toFixed(0)})`)
-    .join('\n');
-  return `\n\nPRICE ANCHORS (real catalog averages — prefer these when picking parts_total):\n${lines}`;
 };
 
 // Strip code fences and slice from the first { to the matching }. Tolerates
@@ -233,21 +208,23 @@ const fingerprintSeed = (parts: Array<string | null | undefined>): number => {
   return h & 0x7fffffff;
 };
 
-const callGroq = async (payload: Record<string, unknown>, attempt: number): Promise<Response> => {
-  const res = await fetch(GROQ_URL, {
+const callGemini = async (payload: Record<string, unknown>, attempt: number): Promise<Response> => {
+  // The API key goes in the header (x-goog-api-key), never the URL, so it does
+  // not leak into request logs.
+  const res = await fetch(GEMINI_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${groqApiKey}`,
+      'x-goog-api-key': geminiApiKey,
     },
     body: JSON.stringify(payload),
   });
   if (!res.ok && attempt < 2) {
-    // Backoff and retry transient errors.
+    // Backoff and retry transient errors (rate limit / 5xx).
     if (res.status === 429 || res.status >= 500) {
       const delay = 600 * (attempt + 1);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return callGroq(payload, attempt + 1);
+      return callGemini(payload, attempt + 1);
     }
   }
   return res;
@@ -273,6 +250,7 @@ serve(async (req: Request) => {
   let body: {
     base64?: string;
     mime_type?: string;
+    frames?: string[];
     storage_path?: string;
     job_id?: string;
     category?: string;
@@ -285,15 +263,24 @@ serve(async (req: Request) => {
     return jsonError('Invalid JSON body', 400);
   }
 
-  const { base64, mime_type, storage_path, job_id, category, problem_description } = body;
+  const { base64, mime_type, frames, storage_path, job_id, category, problem_description } = body;
   const problemDescription = problem_description?.trim();
 
-  let imageBase64: string | null = null;
-  let imageMime: string | null = null;
+  const stripPrefix = (s: string) => (s.includes(',') ? s.split(',')[1] : s);
 
-  if (base64 && mime_type) {
-    imageBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
-    imageMime = mime_type;
+  // One or more still images to analyse. A photo is a single entry; a video is
+  // sent by the client as several sampled JPEG frames so Gemini can reason
+  // across the whole clip (motion, progression) rather than a single moment.
+  const imageInputs: Array<{ base64: string; mime: string }> = [];
+
+  if (Array.isArray(frames) && frames.length > 0) {
+    for (const frame of frames.slice(0, 5)) {
+      if (typeof frame === 'string' && frame.trim().length > 0) {
+        imageInputs.push({ base64: stripPrefix(frame), mime: 'image/jpeg' });
+      }
+    }
+  } else if (base64 && mime_type) {
+    imageInputs.push({ base64: stripPrefix(base64), mime: mime_type });
   } else if (storage_path) {
     const bucket = storage_path.split('/')[0];
     const filePath = storage_path.split('/').slice(1).join('/');
@@ -312,7 +299,7 @@ serve(async (req: Request) => {
     }
 
     const buffer = await fileData.arrayBuffer();
-    imageBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const storedBase64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
     const ext = filePath.split('.').pop()?.toLowerCase() ?? 'jpg';
     const mimeMap: Record<string, string> = {
@@ -323,104 +310,127 @@ serve(async (req: Request) => {
       mp4: 'video/mp4',
       mov: 'video/quicktime',
     };
-    imageMime = mimeMap[ext] ?? 'image/jpeg';
+    imageInputs.push({ base64: storedBase64, mime: mimeMap[ext] ?? 'image/jpeg' });
   } else if (!problemDescription) {
     return jsonError(
-      'Provide either { base64, mime_type }, { storage_path }, or problem_description',
+      'Provide either { base64, mime_type }, { frames }, { storage_path }, or problem_description',
       400
     );
   }
 
-  // The vision model only accepts images. Reject video MIME types early so
-  // callers know to send a frame instead.
-  if (imageMime && imageMime.startsWith('video/')) {
+  // Image parts must be still images. Video is handled upstream by sampling
+  // frames on the client, so anything still tagged as video is rejected clearly.
+  if (imageInputs.some((i) => i.mime.startsWith('video/'))) {
     return jsonError(
-      'Video files can not be analysed directly. Extract a frame on the client and send it as image/jpeg.',
+      'Send a video as sampled image frames, not as a raw video file.',
       415
     );
   }
 
   const canonicalCategory = normalizeCategory(category);
-  const partAnchors = await fetchPartAnchors(canonicalCategory);
+  const useVision = imageInputs.length > 0;
 
   console.log(
-    `Calling Groq | user: ${userId} | mime: ${imageMime ?? 'text-only'} | job: ${job_id ?? 'none'} | anchors: ${partAnchors.length}`
+    `Calling Gemini ${GEMINI_MODEL} | user: ${userId} | mode: ${useVision ? `${imageInputs.length} frame(s)` : 'text-only'} | job: ${job_id ?? 'none'}`
   );
+
+  if (!geminiApiKey) {
+    console.error('GEMINI_API_KEY is not set');
+    return jsonError('Diagnosis service is not configured. Please try again later.', 503);
+  }
+
+  const videoHint =
+    imageInputs.length > 1
+      ? 'The images below are sequential frames sampled from one short video of the same appliance. Read them together as a single clip to judge motion, sparks, leaks, or progression.'
+      : '';
 
   const promptText = [
     category ? `Category hint: ${category}.` : '',
     problemDescription ? `Customer problem description: ${problemDescription}` : '',
-    SYSTEM_PROMPT + formatPartAnchors(partAnchors),
+    videoHint,
+    SYSTEM_PROMPT,
   ].filter(Boolean).join('\n\n');
 
-  const useVision = Boolean(imageBase64 && imageMime);
-
-  const userContent: Array<Record<string, unknown>> = [];
-  if (useVision) {
-    userContent.push({
-      type: 'image_url',
-      image_url: { url: `data:${imageMime};base64,${imageBase64}` },
-    });
+  // Gemini "parts": every image frame first, then the instruction text.
+  const userParts: Array<Record<string, unknown>> = [];
+  for (const img of imageInputs) {
+    userParts.push({ inline_data: { mime_type: img.mime, data: img.base64 } });
   }
-  userContent.push({ type: 'text', text: promptText });
+  userParts.push({ text: promptText });
 
-  // Determinism: temperature=0 + fixed seed derived from the input. Same
-  // image+description ⇒ same Groq output ⇒ same price every time.
-  const seed = fingerprintSeed([imageBase64, problemDescription ?? '', canonicalCategory ?? '']);
+  // Determinism: temperature=0 + a fixed seed derived from the exact input.
+  // Same media + description ⇒ same detection. (Price is fixed in code anyway.)
+  const seed = fingerprintSeed([
+    ...imageInputs.map((i) => i.base64),
+    problemDescription ?? '',
+    canonicalCategory ?? '',
+  ]);
+
+  const geminiPayload = {
+    systemInstruction: {
+      parts: [{
+        text: 'You are a careful appliance-diagnosis assistant. Answer strictly using the provided JSON schema. Write in normal sentence case, never in all caps.',
+      }],
+    },
+    contents: [{ role: 'user', parts: userParts }],
+    generationConfig: {
+      temperature: 0,
+      topP: 1,
+      seed,
+      maxOutputTokens: 1024,
+      responseMimeType: 'application/json',
+      responseSchema: DIAGNOSIS_SCHEMA,
+      // Disable "thinking": for schema-constrained extraction it only adds
+      // latency, cost, and run-to-run variation. Keeps detections reproducible.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
 
   let diagnosis: Record<string, unknown> | null = null;
   let lastRaw = '';
 
   for (let attempt = 0; attempt < 2 && !diagnosis; attempt++) {
-    const groqPayload = {
-      model: useVision ? GROQ_VISION_MODEL : GROQ_TEXT_MODEL,
-      temperature: 0,
-      top_p: 1,
-      seed,
-      max_tokens: 1024,
-      response_format: { type: 'json_object' as const },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a strict JSON generator. Return ONLY a single valid JSON object. No prose, no markdown, no code fences. Never write in all caps. Same input must always produce the same output.',
-        },
-        { role: 'user', content: useVision ? userContent : promptText },
-      ],
-    };
-
-    let groqRes: Response;
+    let geminiRes: Response;
     try {
-      groqRes = await callGroq(groqPayload, 0);
+      geminiRes = await callGemini(geminiPayload, 0);
     } catch (e) {
-      console.error('Groq network error:', e);
+      console.error('Gemini network error:', e);
       return jsonError('Failed to reach the diagnosis service. Please check your connection and try again.', 502);
     }
 
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      console.error(`Groq ${groqRes.status}:`, errText);
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error(`Gemini ${geminiRes.status}:`, errText.slice(0, 500));
       if (attempt >= 1) {
         return jsonError('Our diagnosis engine is busy. Please try again in a moment.', 502);
       }
       continue;
     }
 
-    const groqData = await groqRes.json();
-    const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
+    const geminiData = await geminiRes.json();
+
+    // A blocked prompt returns no candidates — surface a clear message.
+    const blockReason = geminiData?.promptFeedback?.blockReason;
+    if (blockReason) {
+      console.error('Gemini blocked prompt:', blockReason);
+      return jsonError('We could not analyse this image. Please try a clear photo of the appliance.', 422);
+    }
+
+    const candidate = geminiData?.candidates?.[0];
+    const rawText: string = (candidate?.content?.parts ?? [])
+      .map((p: { text?: string }) => p?.text ?? '')
+      .join('')
+      .trim();
     lastRaw = rawText;
 
     if (!rawText) {
-      console.error('Groq empty response on attempt', attempt);
+      console.error(`Gemini empty response on attempt ${attempt} (finishReason: ${candidate?.finishReason ?? 'none'})`);
       continue;
     }
 
-    const jsonSlice = extractJson(rawText);
-    if (!jsonSlice) {
-      console.error(`Could not locate JSON on attempt ${attempt}:`, rawText.slice(0, 400));
-      continue;
-    }
-
+    // responseSchema guarantees valid JSON, but extractJson stays as a belt-and-
+    // braces fallback in case a response is ever wrapped.
+    const jsonSlice = extractJson(rawText) ?? rawText;
     try {
       diagnosis = JSON.parse(jsonSlice);
     } catch (err) {
@@ -429,7 +439,7 @@ serve(async (req: Request) => {
   }
 
   if (!diagnosis) {
-    console.error('Final raw Groq response:', lastRaw.slice(0, 600));
+    console.error('Final raw Gemini response:', lastRaw.slice(0, 600));
     return jsonError(
       'We could not analyse this clearly. Please take a sharper, well-lit photo or add a short description and try again.',
       422
@@ -452,14 +462,7 @@ serve(async (req: Request) => {
 
   const requiredParts = toLowerArray(diagnosis.required_parts);
 
-  const allowedSkills = new Set([
-    'AC Repair',
-    'Electrical',
-    'Plumbing',
-    'Washing Machine Repair',
-    'Refrigerator Repair',
-    'General Appliance',
-  ]);
+  const allowedSkills = new Set<string>(ALLOWED_SKILLS);
   let requiredSkill = String(diagnosis.required_skill ?? '').trim();
   if (!allowedSkills.has(requiredSkill)) {
     requiredSkill = 'General Appliance';
@@ -476,57 +479,31 @@ serve(async (req: Request) => {
       ? (urgencyRaw as 'low' | 'medium' | 'high')
       : faultDetected ? 'medium' : 'low';
 
-  // Pricing: collapse to a SINGLE deterministic point estimate (no wide
-  // ranges). Same image + description always yields the same price.
+  // Pricing: the AI is NOT trusted to price — vision LLMs are non-deterministic
+  // and produce wildly different numbers for the same photo. Instead the price
+  // is a FIXED amount per detected service category. Same category ⇒ same price,
+  // every single time. The AI only decides WHICH category (required_skill).
   {
-    const VISIT_FEE_DEFAULT = 20000; // ₹200
-    const LABOR_MID_DEFAULT = 50000; // ₹500
-    const ABSOLUTE_MIN = 15000;      // ₹150
-    const ABSOLUTE_MAX = 5000000;    // ₹50,000
-    const ROUND_TO = 5000;           // Round to nearest ₹50 — psychologically cleaner.
+    // Fixed upfront booking price per service skill, in paise (₹ × 100).
+    const CATEGORY_FIXED_PRICE: Record<string, number> = {
+      'AC Repair': 49900,                 // ₹499
+      'Electrical': 29900,                // ₹299
+      'Plumbing': 34900,                  // ₹349
+      'Washing Machine Repair': 39900,    // ₹399
+      'Refrigerator Repair': 44900,       // ₹449
+      'General Appliance': 29900,         // ₹299
+    };
+    const VISIT_FEE_ONLY = 19900; // ₹199 — charged when no clear fault is found
 
-    const matchedAnchors = partAnchors.filter((anchor) =>
-      requiredParts.some(
-        (part) =>
-          anchor.part_name.toLowerCase().includes(part) ||
-          part.includes(anchor.part_name.toLowerCase())
-      )
-    );
+    const point = faultDetected
+      ? (CATEGORY_FIXED_PRICE[requiredSkill] ?? CATEGORY_FIXED_PRICE['General Appliance'])
+      : VISIT_FEE_ONLY;
 
-    // Use the midpoint of anchor prices (1.0×) instead of a ±20% band.
-    const anchorPartsMid = matchedAnchors.reduce(
-      (acc, p) => acc + Math.round(p.avg_price_inr),
-      0
-    );
-
-    const aiMin = Math.round(Number(diagnosis.est_cost_min ?? 0));
-    const aiMax = Math.round(Number(diagnosis.est_cost_max ?? 0));
-
-    // Pick a single point: midpoint of AI range if both are valid, otherwise
-    // fall back to a deterministic anchor-based computation.
-    let point: number;
-    if (Number.isFinite(aiMin) && Number.isFinite(aiMax) && aiMin > 0 && aiMax > 0) {
-      point = Math.round((aiMin + aiMax) / 2);
-    } else if (Number.isFinite(aiMin) && aiMin > 0) {
-      point = aiMin;
-    } else {
-      point = VISIT_FEE_DEFAULT + anchorPartsMid + LABOR_MID_DEFAULT;
-    }
-
-    // Round to nearest ₹50 so the number feels intentional, not random.
-    point = Math.round(point / ROUND_TO) * ROUND_TO;
-    point = Math.max(ABSOLUTE_MIN, Math.min(point, ABSOLUTE_MAX));
-
-    // If we could not detect a fault, only charge the visit fee.
-    if (!faultDetected) {
-      point = VISIT_FEE_DEFAULT;
-    }
-
-    // Backward-compatible: both fields equal so existing UI shows one number.
+    // Both fields equal so the existing UI shows a single stable number.
     diagnosis.est_cost_min = point;
     diagnosis.est_cost_max = point;
     diagnosis.est_cost = point;
-    diagnosis.pricing_anchors_used = matchedAnchors.length;
+    diagnosis.pricing_mode = 'fixed_category';
   }
 
   // Repack the cleaned response.
@@ -540,13 +517,18 @@ serve(async (req: Request) => {
 
   let savedStoragePath: string | null = null;
 
-  if (base64 && imageBase64 && imageMime && job_id) {
-    const ext = imageMime === 'image/png' ? 'png'
-      : imageMime === 'image/webp' ? 'webp'
+  // Persist the primary frame/photo for the job record. Only for inline uploads
+  // (base64 photo or sampled video frames) — storage_path media is already saved.
+  const inlineOrigin = Boolean((Array.isArray(frames) && frames.length > 0) || (base64 && mime_type));
+  const primaryImage = imageInputs[0] ?? null;
+
+  if (inlineOrigin && primaryImage && job_id) {
+    const ext = primaryImage.mime === 'image/png' ? 'png'
+      : primaryImage.mime === 'image/webp' ? 'webp'
       : 'jpg';
     const fileName = `${job_id}/diagnosis.${ext}`;
 
-    const binaryStr = atob(imageBase64);
+    const binaryStr = atob(primaryImage.base64);
     const bytes = new Uint8Array(binaryStr.length);
     for (let i = 0; i < binaryStr.length; i += 1) {
       bytes[i] = binaryStr.charCodeAt(i);
@@ -555,7 +537,7 @@ serve(async (req: Request) => {
     const { error: uploadError } = await adminClient
       .storage
       .from('job-media')
-      .upload(fileName, bytes, { contentType: imageMime, upsert: true });
+      .upload(fileName, bytes, { contentType: primaryImage.mime, upsert: true });
 
     if (uploadError) {
       console.error('Storage upload error (non-fatal):', uploadError);
