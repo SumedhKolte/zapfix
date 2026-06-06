@@ -84,6 +84,12 @@ export const useAuth = () => {
     session,
     profile,
     isLoading: isLoading || profileQuery.isLoading,
+    // Split states so the root can tell "still resolving whether the user is
+    // signed in" (block render with a splash) apart from "signed in, profile
+    // row still loading/being created" (keep the current screen mounted — e.g.
+    // the OTP role-picker sheet — and never bounce to /welcome).
+    isSessionLoading: isLoading,
+    isProfileLoading: profileQuery.isLoading,
     signInWithOtp: signInMutation.mutateAsync,
     verifyOtp: verifyMutation.mutateAsync,
     createProfile: createProfileMutation.mutateAsync,

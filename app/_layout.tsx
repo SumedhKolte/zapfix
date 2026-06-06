@@ -24,8 +24,9 @@ SplashScreen.preventAutoHideAsync();
 const RootNavigation = () => {
   const router = useRouter();
   const segments = useSegments();
-  const { session, profile, isLoading } = useAuth();
+  const { session, profile, isSessionLoading, isProfileLoading } = useAuth();
   const needsName = isFullNameMissing(profile?.full_name);
+  const inAuthGroup = segments[0] === '(auth)';
 
   // Once the user is signed in, register their device for OS-level push
   // notifications so createNotification fan-outs reach the phone, not just the
@@ -39,11 +40,11 @@ const RootNavigation = () => {
   });
 
   useEffect(() => {
-    if (isLoading) {
+    // Still resolving whether there's a persisted session — wait it out.
+    if (isSessionLoading) {
       return;
     }
 
-    const inAuthGroup = segments[0] === '(auth)';
     const inCustomerGroup = segments[0] === '(customer)';
     const inProGroup = segments[0] === '(pro)';
 
@@ -55,6 +56,14 @@ const RootNavigation = () => {
     }
 
     if (!profile) {
+      // Signed in, but the profile row hasn't loaded yet (returning user on a
+      // cold start) or doesn't exist yet (brand-new user mid-onboarding). In
+      // both cases the profile query is still in flight — don't redirect, or
+      // we bounce the user to /welcome before we know who they are. The OTP
+      // screen keeps its role-picker sheet mounted while we wait.
+      if (isProfileLoading) {
+        return;
+      }
       if (!inAuthGroup) {
         router.replace('/(auth)/welcome');
       }
@@ -87,14 +96,20 @@ const RootNavigation = () => {
   }, [
     session,
     profile,
-    isLoading,
+    isSessionLoading,
+    isProfileLoading,
+    inAuthGroup,
     segments,
     router,
     proDetailsQuery.data?.onboarding_step,
     needsName
   ]);
 
-  if (isLoading) {
+  // Block render with a splash only while resolving the session, or while a
+  // signed-in user's profile is still loading on a protected (non-auth) route.
+  // On auth routes we must keep the <Stack> mounted so flows that rely on local
+  // screen state (e.g. the OTP role-picker bottom sheet) aren't torn down.
+  if (isSessionLoading || (Boolean(session) && !profile && isProfileLoading && !inAuthGroup)) {
     return <AppSplash />;
   }
 

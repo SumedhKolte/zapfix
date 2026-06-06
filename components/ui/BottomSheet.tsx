@@ -27,6 +27,9 @@ export const BottomSheet = ({ visible, onClose, children, snapPoints }: BottomSh
     <BottomSheetModal
       ref={sheetRef}
       snapPoints={points}
+      // v5 enables dynamic (content-based) sizing by default, which overrides
+      // fixed snapPoints. Disable it so the sheet honours the % snap points.
+      enableDynamicSizing={false}
       onDismiss={onClose}
       backdropComponent={(props) => (
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />

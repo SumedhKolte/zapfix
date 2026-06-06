@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/ui/Button';
-import { BottomSheet } from '@/components/ui/BottomSheet';
 import { useAuth } from '@/hooks/useAuth';
 import { getProfile, getProDetails, upsertProDetails } from '@/services/profile';
 import { useAuthStore } from '@/stores/authStore';
@@ -32,7 +31,7 @@ const logoSource = require('../../assets/icon.png');
 export default function OtpVerify() {
   const router = useRouter();
   const { phone } = useLocalSearchParams<{ phone: string }>();
-  const { verifyOtp, createProfile, signInWithOtp } = useAuth();
+  const { verifyOtp, createProfile, signInWithOtp, session } = useAuth();
   const { setProfile } = useAuthStore();
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
@@ -81,28 +80,46 @@ export default function OtpVerify() {
 
   const handleVerify = async () => {
     const token = otp.join('');
-    if (token.length !== 6 || !phone || verifying) {
+    if (!phone || verifying) {
       return;
     }
 
     setVerifying(true);
-    let session: Awaited<ReturnType<typeof verifyOtp>> | null = null;
-    try {
-      session = await verifyOtp({ phone: `+91${phone}`, token });
-    } catch (err) {
-      const { title, message } = friendlyAuthError(err);
-      Alert.alert(title, message);
+
+    // An OTP token is single-use: once verifyOtp succeeds the token is consumed
+    // server-side and a session exists. If a previous tap already verified but
+    // a later step (profile lookup / role pick) failed, re-sending the same
+    // token would be rejected as "expired". So reuse the live session and just
+    // resume resolving the destination instead of verifying again.
+    let activeSession = session;
+    if (!activeSession?.user?.id) {
+      if (token.length !== 6) {
+        setVerifying(false);
+        return;
+      }
+      try {
+        activeSession = await verifyOtp({ phone: `+91${phone}`, token });
+      } catch (err) {
+        const { title, message } = friendlyAuthError(err);
+        Alert.alert(title, message);
+        resetOtp();
+        setVerifying(false);
+        return;
+      }
+    }
+
+    const userId = activeSession?.user?.id;
+    if (!userId) {
+      // verifyOtp resolved without a usable session — surface it instead of
+      // silently dropping the tap (which looked like "nothing happened").
+      Alert.alert(
+        'Verification incomplete',
+        'We could not start your session. Please request a new code and try again.'
+      );
       resetOtp();
       setVerifying(false);
       return;
     }
-
-    if (!session?.user?.id) {
-      setVerifying(false);
-      return;
-    }
-
-    const userId = session.user.id;
     setPendingSessionId(userId);
 
     try {
@@ -335,33 +352,70 @@ export default function OtpVerify() {
           </View>
         </ScrollView>
         <View style={{ padding: 20 }}>
-          <Button onPress={handleVerify} disabled={otp.join('').length !== 6 || verifying} loading={verifying}>
+          <Button
+            onPress={handleVerify}
+            disabled={(otp.join('').length !== 6 && !session?.user?.id) || verifying}
+            loading={verifying}
+          >
             Verify & continue
           </Button>
         </View>
       </KeyboardAvoidingView>
 
-      <BottomSheet visible={showRoleSheet} onClose={() => setShowRoleSheet(false)}>
-        <Text style={{ fontSize: 18, fontWeight: '700', color: Theme.textDark }}>Choose your role</Text>
-        <Text style={{ color: Theme.textMid, marginTop: 4, fontSize: 12 }}>
-          Tell us how you want to use Zapfix.
-        </Text>
-        <View style={{ marginTop: 16, gap: 12 }}>
-          <RoleOption
-            title="I need a service"
-            description="Book repairs, track jobs, and manage warranties."
-            icon="home"
-            accent
-            onPress={() => handleRoleSelect('customer')}
-          />
-          <RoleOption
-            title="I am a service professional"
-            description="Accept requests, manage inventory, and earn."
-            icon="briefcase"
-            onPress={() => handleRoleSelect('pro')}
-          />
-        </View>
-      </BottomSheet>
+      <Modal
+        visible={showRoleSheet}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowRoleSheet(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(10,15,30,0.45)', justifyContent: 'flex-end' }}
+          onPress={() => setShowRoleSheet(false)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: Theme.cream,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom: 32
+            }}
+          >
+            <View
+              style={{
+                alignSelf: 'center',
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: Theme.border,
+                marginBottom: 16
+              }}
+            />
+            <Text style={{ fontSize: 18, fontWeight: '700', color: Theme.textDark }}>Choose your role</Text>
+            <Text style={{ color: Theme.textMid, marginTop: 4, fontSize: 12 }}>
+              Tell us how you want to use Zapfix.
+            </Text>
+            <View style={{ marginTop: 16, gap: 12 }}>
+              <RoleOption
+                title="I need a service"
+                description="Book repairs, track jobs, and manage warranties."
+                icon="home"
+                accent
+                onPress={() => handleRoleSelect('customer')}
+              />
+              <RoleOption
+                title="I am a service professional"
+                description="Accept requests, manage inventory, and earn."
+                icon="briefcase"
+                onPress={() => handleRoleSelect('pro')}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
