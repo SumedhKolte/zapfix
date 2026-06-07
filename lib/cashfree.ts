@@ -1,4 +1,4 @@
-import { CFPaymentGatewayService } from 'react-native-cashfree-pg-sdk';
+import { NativeModules, Platform } from 'react-native';
 import {
   CFDropCheckoutPayment,
   CFEnvironment,
@@ -32,6 +32,45 @@ export type VerifyResult =
 
 const cfEnvironment = () =>
   Config.cashfreeEnv === 'production' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX;
+
+type CashfreeGatewayService = {
+  setCallback: (callbacks: {
+    onVerify: (orderId: string) => void;
+    onError: (error: { getMessage?: () => string } | string, orderId: string) => void;
+  }) => void;
+  doPayment: (payment: CFDropCheckoutPayment) => void;
+  removeCallback: () => void;
+};
+
+let cachedCashfreeGatewayService: CashfreeGatewayService | null | undefined;
+
+const getCashfreeGatewayService = (): CashfreeGatewayService | null => {
+  if (cachedCashfreeGatewayService !== undefined) {
+    return cachedCashfreeGatewayService;
+  }
+
+  const hasNativeModule =
+    Boolean(NativeModules.CashfreePgApi) &&
+    (Platform.OS !== 'ios' || Boolean(NativeModules.CashfreeEventEmitter));
+
+  if (!hasNativeModule) {
+    cachedCashfreeGatewayService = null;
+    return null;
+  }
+
+  try {
+    // The Cashfree SDK constructs a NativeEventEmitter at module load time,
+    // so we only require it when the native module is actually available.
+    const module = require('react-native-cashfree-pg-sdk') as {
+      CFPaymentGatewayService?: CashfreeGatewayService;
+    };
+    cachedCashfreeGatewayService = module.CFPaymentGatewayService ?? null;
+  } catch {
+    cachedCashfreeGatewayService = null;
+  }
+
+  return cachedCashfreeGatewayService;
+};
 
 // Calls the create-order edge function, returns the session_id that
 // CFPaymentGatewayService.doPayment needs.
@@ -92,6 +131,16 @@ export const launchCashfreeCheckout = async (params: {
 }): Promise<{ orderId: string }> => {
   return new Promise((resolve, reject) => {
     try {
+      const cashfreeGatewayService = getCashfreeGatewayService();
+      if (!cashfreeGatewayService) {
+        reject(
+          new Error(
+            'Cashfree checkout is unavailable in this app build. Use a native dev client or a production build with the Cashfree native module installed.'
+          )
+        );
+        return;
+      }
+
       const session = new CFSession(
         params.paymentSessionId,
         params.orderId,
@@ -117,7 +166,7 @@ export const launchCashfreeCheckout = async (params: {
 
       const dropPayment = new CFDropCheckoutPayment(session, paymentModes, theme);
 
-      CFPaymentGatewayService.setCallback({
+      cashfreeGatewayService.setCallback({
         onVerify: (orderId: string) => {
           resolve({ orderId });
         },
@@ -132,7 +181,7 @@ export const launchCashfreeCheckout = async (params: {
         },
       });
 
-      CFPaymentGatewayService.doPayment(dropPayment);
+      cashfreeGatewayService.doPayment(dropPayment);
     } catch (err) {
       reject(err instanceof Error ? err : new Error('Could not launch Cashfree checkout.'));
     }
@@ -142,7 +191,7 @@ export const launchCashfreeCheckout = async (params: {
 // Best-effort cleanup. Call from a screen unmount if a payment is in flight.
 export const removeCashfreeCallbacks = () => {
   try {
-    CFPaymentGatewayService.removeCallback();
+    getCashfreeGatewayService()?.removeCallback();
   } catch {
     // SDK throws if no callback is registered — safe to ignore.
   }
