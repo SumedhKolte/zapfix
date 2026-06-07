@@ -39,6 +39,16 @@ export const upsertProDetails = async (payload: TablesInsert<'pro_details'>) => 
   if (error) {
     throw error;
   }
+
+  if (payload.pro_id) {
+    const { error: availError } = await supabase
+      .from('pro_availability')
+      .upsert({ pro_id: payload.pro_id }, { onConflict: 'pro_id' });
+    if (availError) {
+      console.warn('Failed to initialize pro_availability, continuing anyway', availError);
+    }
+  }
+
   return data;
 };
 

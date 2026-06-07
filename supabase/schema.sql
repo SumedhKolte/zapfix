@@ -519,6 +519,38 @@ CREATE POLICY "invoices: read participant" ON invoices
     )
   );
 
+-- pro_availability: pros can insert/read/update own row
+CREATE POLICY "pro_availability: insert own" ON pro_availability
+  FOR INSERT WITH CHECK (auth.uid() = pro_id);
+
+CREATE POLICY "pro_availability: read own" ON pro_availability
+  USING (auth.uid() = pro_id);
+
+CREATE POLICY "pro_availability: update own" ON pro_availability
+  FOR UPDATE USING (auth.uid() = pro_id) WITH CHECK (auth.uid() = pro_id);
+
+-- pro_skills: pros can read own
+CREATE POLICY "pro_skills: read own" ON pro_skills
+  USING (auth.uid() = pro_id);
+
+-- matching_log: readable by involved pro or customer (via job)
+CREATE POLICY "matching_log: read participant" ON matching_log
+  USING (
+    auth.uid() = pro_id OR auth.uid() IN (
+      SELECT customer_id FROM jobs WHERE jobs.id = job_id
+    )
+  );
+
+-- catalog tables: readable by all (admin-managed)
+CREATE POLICY "catalog_skills: read all" ON catalog_skills
+  FOR SELECT USING (is_active = true);
+
+CREATE POLICY "catalog_parts: read all" ON catalog_parts
+  FOR SELECT USING (is_active = true);
+
+CREATE POLICY "service_areas: read all" ON service_areas
+  FOR SELECT USING (is_active = true);
+
 -- media_assets: readable by job participants or owning pro
 CREATE POLICY "media_assets: read participant" ON media_assets
   FOR SELECT USING (
