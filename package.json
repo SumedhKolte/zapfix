@@ -50,7 +50,7 @@
     "react-dom": "19.2.3",
     "react-hook-form": "^7.52.2",
     "react-native": "0.85.3",
-    "react-native-cashfree-pg-sdk": "^2.2.4",
+    "react-native-cashfree-pg-sdk": "^2.4.0",
     "react-native-gesture-handler": "~2.31.1",
     "react-native-maps": "1.27.2",
     "react-native-reanimated": "4.3.1",
