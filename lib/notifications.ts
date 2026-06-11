@@ -66,10 +66,19 @@ export const registerForPushNotificationsAsync = async () => {
     );
     return tokenResponse.data;
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    if (message.includes('aps-environment')) {
+      console.warn(
+        '[push] iOS push registration skipped because the app is missing the APNs entitlement. ' +
+        'Enable the Push Notifications capability for the iOS target and rebuild the app.'
+      );
+      return null;
+    }
+
     // FCM not configured (no google-services.json) is the common dev-build
     // failure mode on Android. We log once at info level and fall back to
     // in-app-only notifications — the app keeps working.
-    const message = err instanceof Error ? err.message : String(err);
     if (message.includes('Firebase') || message.includes('FirebaseApp')) {
       console.info(
         '[push] FCM not configured. In-app notifications only. ' +

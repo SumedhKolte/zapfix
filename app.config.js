@@ -29,6 +29,9 @@ module.exports = ({ config }) => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'com.Sumedh.zapfix',
+    entitlements: {
+      'aps-environment': isProd ? 'production' : 'development'
+    },
     config: {
       googleMapsApiKey
     },
