@@ -8,23 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { useJob } from '@/hooks/useJob';
 import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  successLight: '#E8F5EE',
-  error: '#C23232',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   searching:   { label: 'Awaiting Pro',     color: '#1A3580', bg: '#FFF8D6', icon: 'time' },
@@ -39,6 +23,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; ic
 };
 
 function ReceiptRow({ label, value }: { label: string; value: string }) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Theme.border }}>
       <Text style={{ color: Theme.textMid, fontSize: 13 }}>{label}</Text>
@@ -48,6 +33,7 @@ function ReceiptRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ReceiptDetail() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { id, justBooked } = useLocalSearchParams<{ id: string; justBooked?: string }>();
   const { jobQuery } = useJob({ jobId: id });
@@ -160,11 +146,11 @@ export default function ReceiptDetail() {
           <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: Theme.border, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Theme.navy + '12', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="receipt" size={15} color={Theme.navy} />
+                <Ionicons name="receipt" size={15} color={Theme.textDark} />
               </View>
               <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>Booking receipt</Text>
               <View style={{ marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 3, backgroundColor: Theme.amberLight, borderRadius: 6 }}>
-                <Text style={{ fontSize: 12, fontWeight: '800', color: Theme.navy }}>#{job.id.slice(-6).toUpperCase()}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: Theme.textDark }}>#{job.id.slice(-6).toUpperCase()}</Text>
               </View>
             </View>
 
@@ -213,7 +199,7 @@ export default function ReceiptDetail() {
               ].map((step, i) => (
                 <View key={step.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
                   <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Theme.navy + '0F', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={step.icon as any} size={14} color={Theme.navy} />
+                    <Ionicons name={step.icon as any} size={14} color={Theme.textDark} />
                   </View>
                   <Text style={{ flex: 1, color: Theme.textMid, fontSize: 13 }}>{step.text}</Text>
                   <Text style={{ color: Theme.textLight, fontSize: 11, fontWeight: '700' }}>{i + 1}</Text>

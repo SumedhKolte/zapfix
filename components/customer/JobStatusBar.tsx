@@ -2,21 +2,8 @@ import { useRef, useEffect } from 'react';
 import { Text, View, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useTheme } from '@/hooks/useTheme';
 import type { Enums } from '@/types/database';
-
-const Theme = {
-  navy: '#0F2057',
-  amber: '#F5B800',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-};
 
 const steps: Enums<'job_status'>[] = ['matched', 'in_transit', 'arrived', 'working', 'completed'];
 
@@ -33,6 +20,7 @@ type JobStatusBarProps = {
 };
 
 export const JobStatusBar = ({ status }: JobStatusBarProps) => {
+  const { theme: Theme } = useTheme();
   const currentIndex = Math.max(0, steps.indexOf(status));
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -85,7 +73,7 @@ export const JobStatusBar = ({ status }: JobStatusBarProps) => {
                 height:       isCurrent ? 32 : 28,
                 borderRadius: isCurrent ? 16 : 14,
                 backgroundColor: isCompleted ? Theme.navy
-                  : isCurrent ? Theme.amber : Theme.white,
+                  : isCurrent ? Theme.amber : Theme.creamCard,
                 borderWidth: isCurrent ? 0 : 2,
                 borderColor: isCompleted ? Theme.navy : isCurrent ? Theme.amber : Theme.border,
                 alignItems: 'center', justifyContent: 'center',

@@ -7,26 +7,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { WarrantyCard } from '@/components/customer/WarrantyCard';
 import { formatCurrency } from '@/utils/formatCurrency';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  successLight: '#E8F5EE',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 function Section({ children, style }: any) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{
       backgroundColor: Theme.creamCard, borderRadius: 20,
@@ -42,6 +26,7 @@ function Section({ children, style }: any) {
 }
 
 function StarItem({ star, active, onPress }: { star: number; active: boolean; onPress: () => void }) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const handlePress = () => {
     Animated.sequence([
@@ -92,6 +77,7 @@ function AnimatedCard({ children, delay = 0, style }: any) {
 }
 
 export default function JobComplete() {
+  const { theme: Theme } = useTheme();
   const router    = useRouter();
   const [rating,     setRating]     = useState(0);
   const [submitted,  setSubmitted]  = useState(false);

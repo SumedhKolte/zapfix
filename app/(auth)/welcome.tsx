@@ -6,20 +6,7 @@ import { useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/ui/Button';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF'
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const logoSource = require('../../assets/icon.png');
 
@@ -49,23 +36,26 @@ const FeatureRow = ({
   icon: string;
   title: string;
   description: string;
-}) => (
-  <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center', paddingVertical: 2 }}>
-    <Ionicons name={icon as any} size={28} color={Theme.textDark} />
-    <View style={{ flex: 1 }}>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: Theme.textDark }}>
-        {title}
-      </Text>
-      <Text style={{ fontSize: 13, color: Theme.textMid, marginTop: 3, lineHeight: 20 }}>
-        {description}
-      </Text>
+}) => {
+  const { theme: Theme } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center', paddingVertical: 2 }}>
+      <Ionicons name={icon as any} size={28} color={Theme.textDark} />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: Theme.textDark }}>
+          {title}
+        </Text>
+        <Text style={{ fontSize: 13, color: Theme.textMid, marginTop: 3, lineHeight: 20 }}>
+          {description}
+        </Text>
+      </View>
     </View>
-  </View>
-);
-
-const avatarColors = [Theme.textMid, Theme.navyMid, Theme.amber];
+  );
+};
 
 export default function Welcome() {
+  const { theme: Theme } = useTheme();
+  const avatarColors = [Theme.textMid, Theme.navyMid, Theme.amber];
   const router = useRouter();
   const logoScale = useRef(new Animated.Value(1)).current;
   const contentFade = useRef(new Animated.Value(0)).current;

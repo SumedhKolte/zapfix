@@ -36,23 +36,7 @@ import {
   type PlaceSuggestion,
 } from '@/utils/geo';
 import type { Tables } from '@/types/database';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  violet: '#7C6BFF',
-  violetLight: '#EFECFF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  error: '#C23232',
-  success: '#1A7A4A',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type AddressRow = Tables<'customer_addresses'>;
 type Mode = 'list' | 'pickLocation' | 'enterDetails';
@@ -80,6 +64,46 @@ const FALLBACK_REGION: Region = {
 };
 
 export default function Addresses() {
+  const { theme: Theme } = useTheme();
+
+  const inputStyle = {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Theme.border,
+    backgroundColor: Theme.cream,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Theme.textDark,
+  } as const;
+
+  const inputWrapper = {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Theme.border,
+    backgroundColor: Theme.creamCard,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 10,
+    position: 'relative' as const,
+  };
+
+  const floatingLabel = {
+    position: 'absolute' as const,
+    top: 4,
+    left: 14,
+    fontSize: 11,
+    color: Theme.textMid,
+    fontWeight: '600' as const,
+  };
+
+  const floatingInput = {
+    fontSize: 14,
+    color: Theme.textDark,
+    paddingVertical: 4,
+    paddingTop: 8,
+  };
+
   const router = useRouter();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
@@ -489,7 +513,7 @@ export default function Addresses() {
         >
           <Ionicons name="arrow-back" size={20} color={Theme.white} />
         </Pressable>
-        <Text style={{ color: Theme.white, fontSize: 18, fontWeight: '800', flex: 1 }}>
+        <Text style={{ color: Theme.creamCard, fontSize: 18, fontWeight: '800', flex: 1 }}>
           {title}
         </Text>
       </View>
@@ -653,16 +677,16 @@ export default function Addresses() {
   }, [resolvedCoords]);
 
   const renderPickLocationMode = () => (
-    <View style={{ flex: 1, backgroundColor: Theme.white }}>
+    <View style={{ flex: 1, backgroundColor: Theme.creamCard }}>
       {/* Search bar overlay */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: Theme.white }}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: Theme.creamCard }}>
         <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 10 }}>
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               borderRadius: 24,
-              backgroundColor: Theme.white,
+              backgroundColor: Theme.creamCard,
               paddingHorizontal: 12,
               paddingVertical: 8,
               shadowColor: '#000',
@@ -711,7 +735,7 @@ export default function Addresses() {
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: Theme.border,
-                backgroundColor: Theme.white,
+                backgroundColor: Theme.creamCard,
                 overflow: 'hidden',
                 maxHeight: 240,
                 shadowColor: '#000',
@@ -806,7 +830,7 @@ export default function Addresses() {
               marginBottom: 4,
             }}
           >
-            <Text style={{ color: Theme.white, fontSize: 11, fontWeight: '700' }}>
+            <Text style={{ color: Theme.creamCard, fontSize: 11, fontWeight: '700' }}>
               Move pin to set your exact location
             </Text>
           </View>
@@ -824,7 +848,7 @@ export default function Addresses() {
             width: 44,
             height: 44,
             borderRadius: 22,
-            backgroundColor: Theme.white,
+            backgroundColor: Theme.creamCard,
             alignItems: 'center',
             justifyContent: 'center',
             shadowColor: '#000',
@@ -857,7 +881,7 @@ export default function Addresses() {
             }}
           >
             <ActivityIndicator size="small" color={Theme.white} />
-            <Text style={{ color: Theme.white, fontSize: 11, fontWeight: '600' }}>
+            <Text style={{ color: Theme.creamCard, fontSize: 11, fontWeight: '600' }}>
               Fetching address…
             </Text>
           </View>
@@ -867,7 +891,7 @@ export default function Addresses() {
       {/* Bottom confirmation card */}
       <View
         style={{
-          backgroundColor: Theme.white,
+          backgroundColor: Theme.creamCard,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           paddingHorizontal: 20,
@@ -943,7 +967,7 @@ export default function Addresses() {
       >
         <View
           style={{
-            backgroundColor: Theme.white,
+            backgroundColor: Theme.creamCard,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             paddingHorizontal: 20,
@@ -1000,7 +1024,7 @@ export default function Addresses() {
                   borderColor: showCustomType ? Theme.violet : Theme.border,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: showCustomType ? Theme.violetLight : Theme.white,
+                  backgroundColor: showCustomType ? Theme.violetLight : Theme.creamCard,
                 }}
               >
                 <Ionicons name="add" size={18} color={showCustomType ? Theme.violet : Theme.textMid} />
@@ -1020,7 +1044,7 @@ export default function Addresses() {
                       borderRadius: 19,
                       borderWidth: 1.5,
                       borderColor: isSelected ? Theme.violet : Theme.border,
-                      backgroundColor: isSelected ? Theme.violetLight : Theme.white,
+                      backgroundColor: isSelected ? Theme.violetLight : Theme.creamCard,
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 6,
@@ -1142,7 +1166,7 @@ export default function Addresses() {
 
   if (mode === 'pickLocation' || mode === 'enterDetails') {
     return (
-      <View style={{ flex: 1, backgroundColor: Theme.white }}>
+      <View style={{ flex: 1, backgroundColor: Theme.creamCard }}>
         {renderPickLocationMode()}
         {renderDetailsModal()}
       </View>
@@ -1155,41 +1179,3 @@ export default function Addresses() {
     </SafeAreaView>
   );
 }
-
-const inputStyle = {
-  borderRadius: 12,
-  borderWidth: 1.5,
-  borderColor: Theme.border,
-  backgroundColor: Theme.cream,
-  paddingHorizontal: 12,
-  paddingVertical: 12,
-  fontSize: 14,
-  color: Theme.textDark,
-} as const;
-
-const inputWrapper = {
-  borderRadius: 12,
-  borderWidth: 1.5,
-  borderColor: Theme.border,
-  backgroundColor: Theme.white,
-  paddingHorizontal: 14,
-  paddingTop: 18,
-  paddingBottom: 10,
-  position: 'relative' as const,
-};
-
-const floatingLabel = {
-  position: 'absolute' as const,
-  top: 4,
-  left: 14,
-  fontSize: 11,
-  color: Theme.textMid,
-  fontWeight: '600' as const,
-};
-
-const floatingInput = {
-  fontSize: 14,
-  color: Theme.textDark,
-  paddingVertical: 4,
-  paddingTop: 8,
-};

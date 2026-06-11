@@ -80,6 +80,17 @@ export const uploadJobMedia = async (jobId: string, uri: string, fileName: strin
   return storageUrl;
 };
 
+type KycEntityType = 'pro_aadhaar' | 'pro_selfie' | 'pro_toolkit';
+
+// Maps an uploaded KYC file name to its media_assets entity_type. Aadhaar front
+// and back share the 'pro_aadhaar' type (both files are kept in storage; the
+// media_assets row tracks the latest reference).
+const kycFileToEntityType = (fileName: string): KycEntityType => {
+  if (fileName.includes('selfie')) return 'pro_selfie';
+  if (fileName.includes('toolkit')) return 'pro_toolkit';
+  return 'pro_aadhaar';
+};
+
 export const uploadKycDocument = async (proId: string, uri: string, fileName: string) => {
   const optimizedUri = await compressImage(uri);
   const path = `${proId}/${fileName}`;

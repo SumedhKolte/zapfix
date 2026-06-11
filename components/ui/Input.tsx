@@ -1,7 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { Text, TextInput, TextInputProps, View } from 'react-native';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 type InputProps = TextInputProps & {
   label?: string;
@@ -11,12 +11,13 @@ type InputProps = TextInputProps & {
 };
 
 export const Input = ({ label, leftElement, rightElement, error, onFocus, onBlur, ...props }: InputProps) => {
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
-  const borderColor = error ? Colors.error : isFocused ? Colors.amber.primary : Colors.border;
+  const borderColor = error ? colors.error : isFocused ? colors.amber.primary : colors.border;
 
   return (
     <View style={{ gap: 8 }}>
-      {label ? <Text style={{ color: Colors.darkGray, fontSize: 14 }}>{label}</Text> : null}
+      {label ? <Text style={{ color: colors.text.secondary, fontSize: 14 }}>{label}</Text> : null}
       <View
         style={{
           flexDirection: 'row',
@@ -26,14 +27,14 @@ export const Input = ({ label, leftElement, rightElement, error, onFocus, onBlur
           borderRadius: 14,
           height: 54,
           paddingHorizontal: 16,
-          backgroundColor: Colors.offWhite
+          backgroundColor: colors.surfaceAlt
         }}
       >
         {leftElement ? <View style={{ marginRight: 8 }}>{leftElement}</View> : null}
         <TextInput
           {...props}
-          style={{ flex: 1, fontSize: 16, color: Colors.darkGray }}
-          placeholderTextColor={Colors.midGray}
+          style={{ flex: 1, fontSize: 16, color: colors.text.primary }}
+          placeholderTextColor={colors.midGray}
           onFocus={(event) => {
             setIsFocused(true);
             onFocus?.(event);
@@ -45,7 +46,7 @@ export const Input = ({ label, leftElement, rightElement, error, onFocus, onBlur
         />
         {rightElement ? <View style={{ marginLeft: 8 }}>{rightElement}</View> : null}
       </View>
-      {error ? <Text style={{ color: Colors.error, fontSize: 12 }}>{error}</Text> : null}
+      {error ? <Text style={{ color: colors.error, fontSize: 12 }}>{error}</Text> : null}
     </View>
   );
 };

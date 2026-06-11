@@ -1,12 +1,26 @@
 import { supabase } from '@/lib/supabase';
 import type { Json, TablesInsert, TablesUpdate } from '@/types/database';
 
-export type ProOnboardingStep = 'identity' | 'skills' | 'interview' | 'toolkit' | 'inventory' | 'complete';
+export type ProOnboardingStep =
+  | 'aadhaar'
+  | 'selfie'
+  | 'category'
+  | 'assessment'
+  | 'background'
+  | 'bank'
+  | 'tools'
+  | 'trust'
+  | 'complete';
 
 export type ProDetailsUpdate = TablesUpdate<'pro_details'> & {
   onboarding_step?: ProOnboardingStep | null;
   current_location?: unknown;
   interview_transcript?: Json | null;
+  // New onboarding columns (added in migration 20260608120000) — declared here
+  // until the generated database types are regenerated.
+  selfie_match_score?: number | null;
+  background_status?: 'pending' | 'clear' | 'review' | null;
+  trust_score?: number | null;
 };
 
 export const createProfile = async (payload: TablesInsert<'profiles'>) => {

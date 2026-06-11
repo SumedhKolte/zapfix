@@ -1,28 +1,34 @@
 import { Text, View } from 'react-native';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import type { Enums } from '@/types/database';
 
 type StatusPillProps = {
   status: Enums<'job_status'>;
 };
 
-const statusMap: Record<
-  Enums<'job_status'>,
-  { label: string; color: string; pulsing?: boolean }
-> = {
-  triage: { label: 'Analysing', color: Colors.midGray },
-  searching: { label: 'Finding Pro', color: Colors.amber.primary, pulsing: true },
-  matched: { label: 'Pro Assigned', color: Colors.blue.primary },
-  in_transit: { label: 'On the Way', color: Colors.blue.primary },
-  arrived: { label: 'Pro Arrived', color: Colors.blue.primary },
-  working: { label: 'In Progress', color: Colors.amber.primary, pulsing: true },
-  completed: { label: 'Completed', color: Colors.success },
-  disputed: { label: 'Disputed', color: Colors.error },
-  cancelled: { label: 'Cancelled', color: Colors.midGray }
-};
-
 export const StatusPill = ({ status }: StatusPillProps) => {
+  const { colors: Colors } = useTheme();
+  const statusMap: Record<
+    Enums<'job_status'>,
+    { label: string; color: string; pulsing?: boolean }
+  > = {
+    pending_diagnosis: { label: 'Analysing', color: Colors.midGray },
+    diagnosing: { label: 'Analysing', color: Colors.amber.primary, pulsing: true },
+    matching: { label: 'Finding Pro', color: Colors.amber.primary, pulsing: true },
+    pro_assigned: { label: 'Pro Assigned', color: Colors.blue.primary },
+    pro_en_route: { label: 'On the Way', color: Colors.blue.primary },
+    in_progress: { label: 'In Progress', color: Colors.amber.primary, pulsing: true },
+    triage: { label: 'Analysing', color: Colors.midGray },
+    searching: { label: 'Finding Pro', color: Colors.amber.primary, pulsing: true },
+    matched: { label: 'Pro Assigned', color: Colors.blue.primary },
+    in_transit: { label: 'On the Way', color: Colors.blue.primary },
+    arrived: { label: 'Pro Arrived', color: Colors.blue.primary },
+    working: { label: 'In Progress', color: Colors.amber.primary, pulsing: true },
+    completed: { label: 'Completed', color: Colors.success },
+    disputed: { label: 'Disputed', color: Colors.error },
+    cancelled: { label: 'Cancelled', color: Colors.midGray }
+  };
   const meta = statusMap[status];
 
   return (

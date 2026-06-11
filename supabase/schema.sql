@@ -109,8 +109,11 @@ CREATE TABLE pro_details (
   service_radius_km      integer          DEFAULT 10,
   decline_count          integer          DEFAULT 0,
   interview_locked_until timestamptz,              -- 48hr cooldown
-  onboarding_step        text             NOT NULL DEFAULT 'identity'
-                                    CHECK (onboarding_step IN ('identity', 'skills', 'interview', 'toolkit', 'inventory', 'complete')),
+  selfie_match_score     numeric(4,1)     CHECK (selfie_match_score IS NULL OR selfie_match_score BETWEEN 0 AND 100),
+  background_status      text             CHECK (background_status IS NULL OR background_status IN ('pending', 'clear', 'review')),
+  trust_score            numeric(4,1)     CHECK (trust_score IS NULL OR trust_score BETWEEN 0 AND 100),
+  onboarding_step        text             NOT NULL DEFAULT 'aadhaar'
+                                    CHECK (onboarding_step IN ('aadhaar', 'selfie', 'category', 'assessment', 'background', 'bank', 'tools', 'trust', 'complete')),
   kyc_status             kyc_status       NOT NULL DEFAULT 'pending',
   bank_account_ref       text                      -- razorpay payout ref
 );

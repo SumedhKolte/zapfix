@@ -8,23 +8,10 @@ import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 function NotificationItem({ item, index }: any) {
+  const { theme: Theme } = useTheme();
   const opacity    = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(20)).current;
 
@@ -68,7 +55,7 @@ function NotificationItem({ item, index }: any) {
           backgroundColor: item.is_read ? Theme.border + '60' : Theme.navy + '12',
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <Ionicons name={icon as any} size={18} color={item.is_read ? Theme.textLight : Theme.navy} />
+          <Ionicons name={icon as any} size={18} color={item.is_read ? Theme.textLight : Theme.textDark} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -96,6 +83,7 @@ function NotificationItem({ item, index }: any) {
 }
 
 export default function Notifications() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { notificationsQuery, markAllRead } = useNotifications(profile?.id ?? '');
@@ -167,7 +155,6 @@ export default function Notifications() {
         ) : (
           <FlashList
             data={notifications}
-            estimatedItemSize={88}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 20, paddingTop: 24 }}

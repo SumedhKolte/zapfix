@@ -6,11 +6,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 const STORAGE_KEY = 'settings.language';
 
 export default function ProLanguage() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const [language, setLanguage] = useState('en');
 
@@ -49,7 +50,7 @@ export default function ProLanguage() {
               <Pressable
                 key={option.value}
                 onPress={() => handleSelect(option.value)}
-                style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: selected ? Colors.amber.primary : Colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1.5, borderColor: selected ? Colors.amber.primary : Colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
               >
                 <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: selected ? Colors.amber.primary : Colors.border, alignItems: 'center', justifyContent: 'center' }}>
                   {selected ? <Ionicons name="checkmark" size={16} color={Colors.navy.primary} /> : null}

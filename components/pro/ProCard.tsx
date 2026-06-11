@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import type { PressableStateCallbackType, StyleProp, ViewStyle } from 'react-native';
 
-import { ProTheme } from '@/constants/proTheme';
+import { useProTheme } from '@/hooks/useTheme';
 
 type ProCardProps = {
   children: ReactNode;
@@ -15,12 +15,13 @@ type ProCardProps = {
 
 export const ProCard = ({
   children,
-  padding = ProTheme.spacing.md,
+  padding = 14,
   onPress,
   style,
   borderColor,
   backgroundColor,
 }: ProCardProps) => {
+  const ProTheme = useProTheme();
   const baseStyle: ViewStyle = {
     padding,
     backgroundColor: backgroundColor ?? ProTheme.colors.card,

@@ -11,24 +11,12 @@ import { getProfile, getProDetails, upsertProDetails } from '@/services/profile'
 import { useAuthStore } from '@/stores/authStore';
 import { isFullNameMissing } from '@/utils/profile';
 import { friendlyAuthError } from '@/utils/authErrors';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF'
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const logoSource = require('../../assets/icon.png');
 
 export default function OtpVerify() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const { verifyOtp, createProfile, signInWithOtp, session } = useAuth();
@@ -37,6 +25,10 @@ export default function OtpVerify() {
   const [timer, setTimer] = useState(30);
   const [showRoleSheet, setShowRoleSheet] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  // The authenticated phone (E.164, e.g. +919021054825) captured straight from
+  // the verified session. We persist a profile with THIS, never the navigation
+  // param, which could be stale and collide with another account's number.
+  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -121,9 +113,20 @@ export default function OtpVerify() {
       return;
     }
     setPendingSessionId(userId);
+    // Prefer the phone the auth server has for this exact session; only fall
+    // back to the typed number if it's somehow missing.
+    const sessionPhone = activeSession?.user?.phone;
+    setPendingPhone(sessionPhone ? `+${sessionPhone}` : phone ? `+91${phone}` : null);
 
     try {
-      const existingProfile = await getProfile(userId);
+      let existingProfile = await getProfile(userId);
+      if (!existingProfile) {
+        // The session JWT may still be attaching to requests; one retry avoids
+        // mistaking a returning user for a new one (which sent them to the role
+        // picker and then collided on their own phone number).
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        existingProfile = await getProfile(userId);
+      }
       if (!existingProfile) {
         // Brand-new auth user with no profile row yet — ask for role.
         setShowRoleSheet(true);
@@ -165,6 +168,30 @@ export default function OtpVerify() {
     }
   };
 
+  // Route a resolved profile to the right place. Used both when a returning
+  // user's profile already exists and after we create a fresh one.
+  const routeForExistingProfile = async (existing: NonNullable<Awaited<ReturnType<typeof getProfile>>>) => {
+    setProfile(existing);
+    if (isFullNameMissing(existing.full_name)) {
+      router.replace('/(auth)/name');
+      return;
+    }
+    if (existing.role === 'pro') {
+      try {
+        const proDetails = await getProDetails(existing.id);
+        if (proDetails?.onboarding_step && proDetails.onboarding_step !== 'complete') {
+          router.replace(`/(pro)/onboarding/${proDetails.onboarding_step}`);
+          return;
+        }
+      } catch {
+        // Fall through to dashboard when pro details lookup fails.
+      }
+      router.replace('/(pro)/dashboard');
+      return;
+    }
+    router.replace('/(customer)/home');
+  };
+
   const handleRoleSelect = async (role: 'customer' | 'pro') => {
     if (!pendingSessionId || !phone) {
       return;
@@ -173,10 +200,20 @@ export default function OtpVerify() {
     setShowRoleSheet(false);
 
     try {
+      // Guard: a profile may already exist for this user — a returning user
+      // whose initial lookup raced the session, a double-tap, or a retry. Using
+      // it (instead of blindly inserting) avoids the "duplicate phone number"
+      // crash that leaves both new and existing users stranded here.
+      const existing = await getProfile(pendingSessionId);
+      if (existing) {
+        await routeForExistingProfile(existing);
+        return;
+      }
+
       const createdProfile = await createProfile({
         id: pendingSessionId,
         role,
-        phone_number: `+91${phone}`,
+        phone_number: pendingPhone ?? `+91${phone}`,
         full_name: 'New User'
       });
       setProfile(createdProfile);
@@ -187,9 +224,21 @@ export default function OtpVerify() {
 
       router.replace('/(auth)/name');
     } catch (err) {
-      // Re-open the sheet so the user isn't stranded after a failure.
-      const { title, message } = friendlyAuthError(err);
-      Alert.alert(title, message);
+      // Unique-violation recovery: the row already exists (a parallel attempt
+      // or a lookup that returned null while the JWT was still attaching).
+      // Recover the existing profile and continue rather than dead-ending.
+      const code = (err as { code?: string })?.code;
+      const message = err instanceof Error ? err.message : '';
+      if (code === '23505' || /duplicate key|already exists|profiles_phone_number_key/i.test(message)) {
+        const recovered = await getProfile(pendingSessionId).catch(() => null);
+        if (recovered) {
+          await routeForExistingProfile(recovered);
+          return;
+        }
+      }
+      // Re-open the sheet so the user isn't stranded after a genuine failure.
+      const friendly = friendlyAuthError(err);
+      Alert.alert(friendly.title, friendly.message);
       setShowRoleSheet(true);
     }
   };
@@ -245,7 +294,7 @@ export default function OtpVerify() {
           justifyContent: 'center'
         }}
       >
-        <Ionicons name={icon as any} size={20} color={Theme.navy} />
+        <Ionicons name={icon as any} size={20} color={Theme.textDark} />
       </View>
       <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>{title}</Text>

@@ -1,30 +1,14 @@
-import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Colors } from '@/constants/colors';
-
-const STORAGE_KEY = 'settings.appearance';
-type AppearanceMode = 'system' | 'light' | 'dark';
+import { useTheme, type AppearanceMode } from '@/hooks/useTheme';
 
 export default function ProAppearance() {
   const router = useRouter();
-  const [mode, setMode] = useState<AppearanceMode>('system');
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      if (value === 'light' || value === 'dark' || value === 'system') setMode(value);
-    });
-  }, []);
-
-  const handleSelect = async (value: AppearanceMode) => {
-    setMode(value);
-    await AsyncStorage.setItem(STORAGE_KEY, value);
-  };
+  const { mode, setMode, colors: Colors } = useTheme();
 
   const options: { value: AppearanceMode; label: string; description: string }[] = [
     { value: 'system', label: 'System', description: 'Match your device settings' },
@@ -33,7 +17,7 @@ export default function ProAppearance() {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 28 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -50,9 +34,9 @@ export default function ProAppearance() {
             return (
               <Pressable
                 key={option.value}
-                onPress={() => handleSelect(option.value)}
+                onPress={() => setMode(option.value)}
                 style={{
-                  backgroundColor: Colors.white, borderRadius: 18, padding: 16,
+                  backgroundColor: Colors.surface, borderRadius: 18, padding: 16,
                   borderWidth: 1.5, borderColor: selected ? Colors.amber.primary : Colors.border,
                   flexDirection: 'row', alignItems: 'center', gap: 12,
                 }}
@@ -68,7 +52,7 @@ export default function ProAppearance() {
             );
           })}
           <Text style={{ color: Colors.midGray, fontSize: 12, marginTop: 6 }}>
-            Appearance preference is saved and will apply when theme support is enabled.
+            Your appearance preference applies instantly across the whole app.
           </Text>
         </View>
       </ScrollView>

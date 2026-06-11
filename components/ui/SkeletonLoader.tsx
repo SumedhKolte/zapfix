@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import type { DimensionValue } from 'react-native';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 type SkeletonLoaderProps = {
   height?: number;
@@ -10,13 +10,14 @@ type SkeletonLoaderProps = {
 };
 
 export const SkeletonLoader = ({ height = 16, width = '100%', radius = 8 }: SkeletonLoaderProps) => {
+  const { colors } = useTheme();
   return (
     <View
       style={{
         height,
         width,
         borderRadius: radius,
-        backgroundColor: Colors.amber.light
+        backgroundColor: colors.surfaceAlt
       }}
     />
   );

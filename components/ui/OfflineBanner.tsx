@@ -1,12 +1,13 @@
 import { Text, View } from 'react-native';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 type OfflineBannerProps = {
   visible: boolean;
 };
 
 export const OfflineBanner = ({ visible }: OfflineBannerProps) => {
+  const { colors } = useTheme();
   if (!visible) {
     return null;
   }
@@ -14,12 +15,12 @@ export const OfflineBanner = ({ visible }: OfflineBannerProps) => {
   return (
     <View
       style={{
-        backgroundColor: Colors.amber.primary,
+        backgroundColor: colors.amber.primary,
         paddingVertical: 8,
         alignItems: 'center'
       }}
     >
-      <Text style={{ color: Colors.navy.primary, fontWeight: '700' }}>No internet connection</Text>
+      <Text style={{ color: colors.navy.primary, fontWeight: '700' }}>No internet connection</Text>
     </View>
   );
 };

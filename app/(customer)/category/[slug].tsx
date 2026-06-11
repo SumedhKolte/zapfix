@@ -8,22 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { getCategoryCatalog, type FixedIssue } from '@/constants/pricing';
 import { formatCurrency } from '@/utils/formatCurrency';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 // Hero icon shown in the category header, per Quick Category label.
 const CATEGORY_ICON: Record<string, string> = {
@@ -37,6 +22,7 @@ const CATEGORY_ICON: Record<string, string> = {
 
 /* ── Small trust signal chip used in the card footer ── */
 function TrustChip({ icon, label }: { icon: string; label: string }) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Ionicons name={icon as any} size={12} color={Theme.blue} />
@@ -55,6 +41,7 @@ function IssueCard({
   popular: boolean;
   onPress: () => void;
 }) {
+  const { theme: Theme } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -125,7 +112,7 @@ function IssueCard({
             {issue.description}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
-            <Text style={{ fontSize: 19, fontWeight: '900', color: Theme.navy }}>
+            <Text style={{ fontSize: 19, fontWeight: '900', color: Theme.textDark }}>
               {formatCurrency(issue.pricePaise)}
             </Text>
             <View style={{ backgroundColor: Theme.amberLight, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
@@ -147,7 +134,7 @@ function IssueCard({
           paddingVertical: 11,
           borderTopWidth: 1,
           borderTopColor: Theme.border,
-          backgroundColor: '#FBFCFE',
+          backgroundColor: Theme.cream,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 }}>
@@ -175,6 +162,7 @@ function IssueCard({
 }
 
 export default function CategoryIssues() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
 

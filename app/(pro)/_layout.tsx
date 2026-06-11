@@ -1,25 +1,12 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Animated, Pressable, Text, StyleSheet } from 'react-native';
+import { Animated, Pressable, Text } from 'react-native';
 import { useRef, useEffect } from 'react';
 
-import { Colors } from '@/constants/colors';
-
-const Theme = {
-  navy: Colors.navy.primary,
-  navyMid: Colors.navy.light,
-  amber: Colors.amber.primary,
-  amberLight: Colors.amber.light,
-  cream: Colors.offWhite,
-  creamCard: Colors.white,
-  textDark: Colors.text.primary,
-  textMid: Colors.text.secondary,
-  textLight: Colors.midGray,
-  border: Colors.border,
-  white: Colors.white,
-};
+import { useTheme } from '@/hooks/useTheme';
 
 function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +40,8 @@ function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
     >
       <Animated.View
         style={{
-          ...StyleSheet.absoluteFillObject,
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: Theme.amber,
           opacity: bgOpacity,
           borderRadius: 18,
@@ -69,6 +57,7 @@ function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
 }
 
 function CenterTabButton({ onPress, accessibilityState }: any) {
+  const { theme: Theme } = useTheme();
   const focused = accessibilityState?.selected;
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -126,6 +115,7 @@ function CenterTabButton({ onPress, accessibilityState }: any) {
 }
 
 export default function ProLayout() {
+  const { theme: Theme } = useTheme();
   return (
     <Tabs
       screenOptions={{

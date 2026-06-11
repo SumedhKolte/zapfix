@@ -4,11 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 function LegalCard({ title, body, footer }: { title: string; body: string; footer?: string }) {
+  const { colors: Colors } = useTheme();
   return (
-    <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+    <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.text.primary }}>{title}</Text>
       <Text style={{ fontSize: 12, color: Colors.text.secondary, marginTop: 8, lineHeight: 18 }}>{body}</Text>
       {footer ? <Text style={{ fontSize: 12, color: Colors.midGray, marginTop: 8 }}>{footer}</Text> : null}
@@ -17,6 +18,7 @@ function LegalCard({ title, body, footer }: { title: string; body: string; foote
 }
 
 export default function ProLegal() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
 
   return (

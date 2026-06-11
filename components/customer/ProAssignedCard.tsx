@@ -2,20 +2,7 @@ import { useRef, useEffect } from 'react';
 import { Image, Text, View, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const Theme = {
-  navy: '#0F2057',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type ProAssignedCardProps = {
   name: string;
@@ -32,14 +19,15 @@ type ProAssignedCardProps = {
 };
 
 function StatItem({ icon, label, value, highlight }: any) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
       <View style={{
         width: 32, height: 32, borderRadius: 10,
-        backgroundColor: highlight ? Theme.navy + '12' : Theme.border + '80',
+        backgroundColor: highlight ? Theme.amber + '20' : Theme.border + '80',
         alignItems: 'center', justifyContent: 'center',
       }}>
-        <Ionicons name={icon} size={15} color={highlight ? Theme.navy : Theme.textMid} />
+        <Ionicons name={icon} size={15} color={highlight ? Theme.amber : Theme.textMid} />
       </View>
       <Text style={{ fontSize: 12, fontWeight: '700', color: Theme.textDark }}>{value}</Text>
       <Text style={{ fontSize: 10, color: Theme.textLight }}>{label}</Text>
@@ -51,6 +39,7 @@ export const ProAssignedCard = ({
   name, avatarUrl, rating, ratingCount, skill, distanceKm,
   score, jobsCompleted, hasPart, loading, onContact,
 }: ProAssignedCardProps) => {
+  const { theme: Theme } = useTheme();
   const ratingValue = rating ?? 0;
   const ratingLabel = rating !== null ? rating.toFixed(1) : 'New';
   const scoreLabel = score !== null ? score.toFixed(1) : '—';
@@ -121,10 +110,10 @@ export const ProAssignedCard = ({
             </View>
 
             <View style={{
-              backgroundColor: Theme.navy + '10',
+              backgroundColor: Theme.amber + '18',
               borderRadius: 12, padding: 8, alignItems: 'center',
             }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: Theme.navy }}>{scoreLabel}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: Theme.textDark }}>{scoreLabel}</Text>
               <Text style={{ fontSize: 9, color: Theme.textMid, fontWeight: '700' }}>SCORE</Text>
             </View>
           </View>

@@ -29,25 +29,7 @@ import { collectPayment } from '@/services/payments';
 import { removeCashfreeCallbacks } from '@/lib/cashfree';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { geocodeAddress, normalizeGeoPoint, parseAddressText, reverseGeocode, toWktPoint } from '@/utils/geo';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  error: '#C23232',
-  errorLight: '#FFF0F0',
-  success: '#1A7A4A',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type DateOption = { date: Date; label: string; sublabel: string };
 
@@ -97,6 +79,7 @@ const buildTimeSlots = (selectedDate: Date): { date: Date; label: string }[] => 
 };
 
 function ProcessingAnimation() {
+  const { theme: Theme } = useTheme();
   const pulse = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
@@ -132,6 +115,7 @@ function ProcessingAnimation() {
 }
 
 export default function Diagnose() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { category, resetKey } = useLocalSearchParams<{ category?: string; resetKey?: string }>();
   const { profile } = useAuth();
@@ -781,12 +765,12 @@ export default function Diagnose() {
                     {media ? (
                       <>
                         <Image source={{ uri: media.uri }} style={{ width: '100%', height: 200, borderRadius: 12 }} resizeMode="cover" />
-                        <Text style={{ color: Theme.navy, fontWeight: '600', fontSize: 13 }}>Tap to pick again from gallery</Text>
+                        <Text style={{ color: Theme.textDark, fontWeight: '600', fontSize: 13 }}>Tap to pick again from gallery</Text>
                       </>
                     ) : (
                       <>
                         <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: Theme.navy + '12', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="images" size={28} color={Theme.navy} />
+                          <Ionicons name="images" size={28} color={Theme.textDark} />
                         </View>
                         <Text style={{ color: Theme.textDark, fontWeight: '700', fontSize: 15 }}>
                           Add a photo or video
@@ -877,7 +861,7 @@ export default function Diagnose() {
                   {tips.map((tip) => (
                     <View key={tip.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name={tip.icon as any} size={14} color={Theme.navy} />
+                        <Ionicons name={tip.icon as any} size={14} color={Theme.textDark} />
                       </View>
                       <Text style={{ color: Theme.textMid, fontSize: 13, flex: 1 }}>{tip.text}</Text>
                     </View>
@@ -958,7 +942,7 @@ export default function Diagnose() {
                 {/* Address picker */}
                 <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <Ionicons name="location-outline" size={16} color={Theme.navy} />
+                    <Ionicons name="location-outline" size={16} color={Theme.textDark} />
                     <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Service address</Text>
                   </View>
 
@@ -1014,7 +998,7 @@ export default function Diagnose() {
                 {/* Date picker */}
                 <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <Ionicons name="calendar-outline" size={16} color={Theme.navy} />
+                    <Ionicons name="calendar-outline" size={16} color={Theme.textDark} />
                     <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a day</Text>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -1046,7 +1030,7 @@ export default function Diagnose() {
                 {/* Time picker */}
                 <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <Ionicons name="time-outline" size={16} color={Theme.navy} />
+                    <Ionicons name="time-outline" size={16} color={Theme.textDark} />
                     <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a time</Text>
                   </View>
                   {timeSlots.length === 0 ? (

@@ -6,11 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 
 function NotificationItem({ item, index, onPress }: any) {
+  const { colors: Colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(20)).current;
 
@@ -34,7 +35,7 @@ function NotificationItem({ item, index, onPress }: any) {
       <Pressable
         onPress={onPress}
         style={{
-          backgroundColor: Colors.white, borderRadius: 16, padding: 14, marginBottom: 10,
+          backgroundColor: Colors.surface, borderRadius: 16, padding: 14, marginBottom: 10,
           flexDirection: 'row', gap: 12, alignItems: 'flex-start',
           borderLeftWidth: 3, borderLeftColor: item.is_read ? 'transparent' : Colors.amber.primary,
           shadowColor: Colors.navy.primary, shadowOffset: { width: 0, height: 1 },
@@ -43,7 +44,7 @@ function NotificationItem({ item, index, onPress }: any) {
         }}
       >
         <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: item.is_read ? Colors.border + '60' : Colors.navy.primary + '12', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon as any} size={18} color={item.is_read ? Colors.midGray : Colors.navy.primary} />
+          <Ionicons name={icon as any} size={18} color={item.is_read ? Colors.midGray : Colors.text.primary} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -65,6 +66,7 @@ function NotificationItem({ item, index, onPress }: any) {
 }
 
 export default function ProNotifications() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { notificationsQuery, markAllRead, markRead } = useNotifications(profile?.id ?? '');
@@ -118,7 +120,6 @@ export default function ProNotifications() {
         ) : (
           <FlashList
             data={notifications}
-            estimatedItemSize={88}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 20, paddingTop: 24 }}

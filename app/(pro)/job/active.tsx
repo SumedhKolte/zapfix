@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
@@ -20,8 +20,9 @@ const CANCEL_REASONS = [
 ];
 
 function Card({ children, title, icon }: any) {
+  const { colors: Colors } = useTheme();
   return (
-    <View style={{ backgroundColor: Colors.white, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 16 }}>
+    <View style={{ backgroundColor: Colors.surface, borderRadius: 14, borderWidth: 1, borderColor: Colors.border, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         {icon && (
           <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.amber.light, alignItems: 'center', justifyContent: 'center' }}>
@@ -36,6 +37,7 @@ function Card({ children, title, icon }: any) {
 }
 
 export default function ActiveJob() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { jobsQuery, proStartTransit, proMarkArrived, updateJobStatus, proCancelAcceptedJob } = useJob({ proId: profile?.id });
@@ -160,7 +162,7 @@ export default function ActiveJob() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 28 }}>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '600' }}>Current Job</Text>
@@ -232,7 +234,7 @@ export default function ActiveJob() {
             {canCancelAfterAccept ? (
               <View
                 style={{
-                  backgroundColor: Colors.white,
+                  backgroundColor: Colors.surface,
                   borderRadius: 14,
                   borderWidth: 1,
                   borderColor: Colors.error + '40',
@@ -260,9 +262,9 @@ export default function ActiveJob() {
 
       <Modal visible={cancelOpen} animationType="slide" transparent onRequestClose={() => setCancelOpen(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(10,15,30,0.45)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: Colors.white, padding: 22, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 14 }}>
+          <View style={{ backgroundColor: Colors.surface, padding: 22, borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.navy.primary }}>Cancel this job?</Text>
+              <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.text.primary }}>Cancel this job?</Text>
               <Pressable onPress={() => setCancelOpen(false)} hitSlop={10}>
                 <Ionicons name="close" size={22} color={Colors.midGray} />
               </Pressable>
@@ -284,7 +286,7 @@ export default function ActiveJob() {
                       paddingVertical: 10, paddingHorizontal: 12,
                       borderRadius: 12, borderWidth: 1.5,
                       borderColor: selected ? Colors.amber.primary : Colors.border,
-                      backgroundColor: selected ? Colors.amber.primary + '15' : Colors.white,
+                      backgroundColor: selected ? Colors.amber.primary + '15' : Colors.surface,
                     }}
                   >
                     <View style={{
@@ -311,7 +313,7 @@ export default function ActiveJob() {
               style={{
                 minHeight: 60, borderWidth: 1, borderColor: Colors.border,
                 borderRadius: 12, padding: 12, color: Colors.darkGray,
-                backgroundColor: Colors.offWhite, fontSize: 13, textAlignVertical: 'top',
+                backgroundColor: Colors.bg, fontSize: 13, textAlignVertical: 'top',
               }}
             />
 

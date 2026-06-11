@@ -14,7 +14,7 @@ import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
 import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { getProDetails } from '@/services/profile';
-import { Colors } from '@/constants/colors';
+import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { AppSplash } from '@/components/ui/AppSplash';
 import { isFullNameMissing } from '@/utils/profile';
@@ -71,7 +71,7 @@ const RootNavigation = () => {
     }
 
     if (needsName) {
-      const inNameScreen = inAuthGroup && segments[1] === 'name';
+      const inNameScreen = inAuthGroup && (segments as string[])[1] === 'name';
       if (!inNameScreen) {
         router.replace('/(auth)/name');
       }
@@ -116,25 +116,34 @@ const RootNavigation = () => {
   return <Stack screenOptions={{ headerShown: false }} />;
 };
 
-export default function RootLayout() {
+function ThemedRoot() {
   const netInfo = useNetInfo();
   const isOffline = netInfo.isConnected === false;
-
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+  const { colors, scheme } = useTheme();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
-            <StatusBar style="dark" />
+            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
             <OfflineBanner visible={isOffline} />
             <RootNavigation />
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <ThemeProvider>
+      <ThemedRoot />
+    </ThemeProvider>
   );
 }

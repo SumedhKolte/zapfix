@@ -2,37 +2,8 @@ import { useRef } from 'react';
 import { Text, View, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useTheme } from '@/hooks/useTheme';
 import type { Enums } from '@/types/database';
-
-const Theme = {
-  navy: '#0F2057',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  warning: '#C07A00',
-  error: '#C23232',
-};
-
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  triage:     { label: 'Analysing',  color: Theme.blue,    bg: Theme.blueLight,        icon: 'hardware-chip'      },
-  searching:  { label: 'Matching',   color: Theme.amber,   bg: Theme.amberLight,       icon: 'search'             },
-  matched:    { label: 'Matched',    color: Theme.navy,    bg: Theme.navy + '12',      icon: 'person'             },
-  in_transit: { label: 'On the way', color: Theme.blue,    bg: Theme.blueLight,        icon: 'car'                },
-  arrived:    { label: 'Arrived',    color: Theme.warning, bg: '#FFF3E0',              icon: 'location'           },
-  working:    { label: 'Fixing',     color: Theme.warning, bg: '#FFF3E0',              icon: 'build'              },
-  completed:  { label: 'Done',       color: Theme.success, bg: Theme.success + '15',   icon: 'checkmark-circle'   },
-  disputed:   { label: 'Disputed',   color: Theme.error,   bg: Theme.error + '12',     icon: 'alert-circle'       },
-  cancelled:  { label: 'Cancelled',  color: Theme.textMid, bg: Theme.border,           icon: 'close-circle'       },
-};
 
 type JobHistoryItemProps = {
   faultName: string;
@@ -43,6 +14,18 @@ type JobHistoryItemProps = {
 };
 
 export const JobHistoryItem = ({ faultName, proName, date, status, onPress }: JobHistoryItemProps) => {
+  const { theme: Theme } = useTheme();
+  const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+    triage:     { label: 'Analysing',  color: Theme.blue,    bg: Theme.blueLight,        icon: 'hardware-chip'      },
+    searching:  { label: 'Matching',   color: Theme.amber,   bg: Theme.amberLight,       icon: 'search'             },
+    matched:    { label: 'Matched',    color: Theme.textDark, bg: Theme.navy + '12',     icon: 'person'             },
+    in_transit: { label: 'On the way', color: Theme.blue,    bg: Theme.blueLight,        icon: 'car'                },
+    arrived:    { label: 'Arrived',    color: Theme.warning, bg: Theme.warningLight,     icon: 'location'           },
+    working:    { label: 'Fixing',     color: Theme.warning, bg: Theme.warningLight,     icon: 'build'              },
+    completed:  { label: 'Done',       color: Theme.success, bg: Theme.success + '15',   icon: 'checkmark-circle'   },
+    disputed:   { label: 'Disputed',   color: Theme.error,   bg: Theme.error + '12',     icon: 'alert-circle'       },
+    cancelled:  { label: 'Cancelled',  color: Theme.textMid, bg: Theme.border,           icon: 'close-circle'       },
+  };
   const scale = useRef(new Animated.Value(1)).current;
   const cfg   = statusConfig[status] ?? statusConfig.triage;
 

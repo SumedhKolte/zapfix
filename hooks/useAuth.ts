@@ -36,7 +36,7 @@ export const useAuth = () => {
       // SIGNED_OUT and USER_DELETED drop the session. We trust whatever the
       // server says here; any failure to refresh raises an AuthStateChange
       // event with nextSession=null instead of throwing.
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      if (event === 'SIGNED_OUT' || (event as string) === 'USER_DELETED') {
         clearAuth();
         return;
       }

@@ -3,25 +3,7 @@ import { Text, View, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { formatCurrency } from '@/utils/formatCurrency';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  warning: '#C07A00',
-  error: '#C23232',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type DiagnosisCardProps = {
   faultName: string;
@@ -37,6 +19,7 @@ export const DiagnosisCard = ({
   faultName, description, confidence,
   parts, costMin, costMax, urgency,
 }: DiagnosisCardProps) => {
+  const { theme: Theme } = useTheme();
   const barWidth  = useRef(new Animated.Value(0)).current;
   const cardAnim  = useRef(new Animated.Value(0)).current;
 
@@ -125,7 +108,7 @@ export const DiagnosisCard = ({
                   paddingHorizontal: 10, paddingVertical: 5,
                   borderWidth: 1, borderColor: Theme.amber + '50',
                 }}>
-                  <Text style={{ fontSize: 12, color: Theme.navy, fontWeight: '700' }}>{part}</Text>
+                  <Text style={{ fontSize: 12, color: Theme.textDark, fontWeight: '700' }}>{part}</Text>
                 </View>
               ))}
             </View>
@@ -146,7 +129,7 @@ export const DiagnosisCard = ({
                 : `${formatCurrency(costMin)} – ${formatCurrency(costMax)}`}
             </Text>
           </View>
-          <Ionicons name="cash-outline" size={28} color={Theme.navy} />
+          <Ionicons name="cash-outline" size={28} color={Theme.textDark} />
         </View>
 
         {/* Urgency */}

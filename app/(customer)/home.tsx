@@ -11,25 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from '@/hooks/useLocation';
 import { useProfile } from '@/hooks/useProfile';
+import { useTheme } from '@/hooks/useTheme';
 import { parseAddressText } from '@/utils/geo';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  amberBorder: '#F5B80040',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  success: '#1A7A4A',
-  white: '#FFFFFF',
-};
 
 type Category = {
   label: string;
@@ -70,6 +53,7 @@ function AnimatedCard({ children, delay = 0, style }: any) {
 
 // Shimmering pulse used while jobs / addresses are loading.
 function ShimmerBlock({ height = 70, radius = 14, style }: any) {
+  const { theme: Theme } = useTheme();
   const opacity = useRef(new Animated.Value(0.45)).current;
   useEffect(() => {
     Animated.loop(
@@ -92,6 +76,7 @@ function ShimmerBlock({ height = 70, radius = 14, style }: any) {
 }
 
 function CategoryCard({ category, onPress, delay = 0 }: { category: Category; onPress: () => void; delay?: number }) {
+  const { theme: Theme, scheme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const enter = useRef(new Animated.Value(0)).current;
 
@@ -119,7 +104,7 @@ function CategoryCard({ category, onPress, delay = 0 }: { category: Category; on
         onPressIn={() => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         style={{
-          backgroundColor: category.tint,
+          backgroundColor: scheme === 'dark' ? Theme.creamCard : category.tint,
           borderRadius: 18,
           padding: 14,
           minHeight: 118,
@@ -154,6 +139,7 @@ function CategoryCard({ category, onPress, delay = 0 }: { category: Category; on
 }
 
 function ActionButton({ icon, label, onPress }: any) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   return (
     <Animated.View style={{ transform: [{ scale }], flex: 1 }}>
@@ -185,6 +171,7 @@ function ActionButton({ icon, label, onPress }: any) {
 }
 
 function LogoMark() {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <View style={{ width: 34, height: 34, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
@@ -220,6 +207,7 @@ function LogoMark() {
 }
 
 export default function CustomerHome() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { areaName } = useLocation();

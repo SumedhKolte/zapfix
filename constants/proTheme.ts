@@ -1,26 +1,29 @@
-import { Colors } from './colors';
+import { lightColors, type ColorPalette } from './colors';
 
-export const ProTheme = {
+// Builds the pro design-system theme from a live colour palette so it responds
+// to dark mode. Use the `useProTheme()` hook in components; the static
+// `ProTheme` export (light) remains for any non-reactive usage.
+export const makeProTheme = (c: ColorPalette) => ({
   colors: {
-    background: Colors.offWhite,
-    card: Colors.white,
-    surface: Colors.lightGray,
-    border: Colors.border,
-    navy: Colors.navy.primary,
-    navyMid: Colors.navy.light,
-    amber: Colors.amber.primary,
-    amberLight: Colors.amber.light,
-    amberDark: Colors.amber.dark,
-    blue: Colors.blue.primary,
-    blueLight: Colors.blue.light,
-    success: Colors.success,
-    warning: Colors.warning,
-    error: Colors.error,
+    background: c.bg,
+    card: c.surface,
+    surface: c.surfaceAlt,
+    border: c.border,
+    navy: c.navy.primary,
+    navyMid: c.navy.light,
+    amber: c.amber.primary,
+    amberLight: c.amber.light,
+    amberDark: c.amber.dark,
+    blue: c.blue.primary,
+    blueLight: c.blue.light,
+    success: c.success,
+    warning: c.warning,
+    error: c.error,
     text: {
-      primary: Colors.text.primary,
-      secondary: Colors.text.secondary,
-      muted: Colors.midGray,
-      inverse: Colors.white,
+      primary: c.text.primary,
+      secondary: c.text.secondary,
+      muted: c.midGray,
+      inverse: c.white,
     },
   },
   radius: {
@@ -41,14 +44,14 @@ export const ProTheme = {
   },
   shadow: {
     card: {
-      shadowColor: Colors.navy.primary,
+      shadowColor: c.navy.primary,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.06,
       shadowRadius: 12,
       elevation: 3,
     },
     lifted: {
-      shadowColor: Colors.navy.primary,
+      shadowColor: c.navy.primary,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.12,
       shadowRadius: 16,
@@ -56,8 +59,8 @@ export const ProTheme = {
     },
   },
   gradient: {
-    header: [Colors.navy.primary, Colors.navy.light, Colors.blue.primary],
-    headerSoft: [Colors.navy.primary, Colors.navy.light],
+    header: [c.navy.primary, c.navy.light, c.blue.primary],
+    headerSoft: [c.navy.primary, c.navy.light],
   },
   type: {
     title: { fontSize: 16, fontWeight: '800' as const },
@@ -66,4 +69,8 @@ export const ProTheme = {
     body: { fontSize: 13, fontWeight: '600' as const },
     caption: { fontSize: 11, fontWeight: '600' as const },
   },
-};
+});
+
+export type ProThemeType = ReturnType<typeof makeProTheme>;
+
+export const ProTheme = makeProTheme(lightColors);

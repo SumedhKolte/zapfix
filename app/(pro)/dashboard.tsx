@@ -8,8 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocation } from '@/hooks/useLocation';
 import { useProfile } from '@/hooks/useProfile';
 import { useJob } from '@/hooks/useJob';
 import { getAvailability, updateAvailability } from '@/services/availability';
@@ -27,6 +28,7 @@ function HeroHeader({
   onToggle,
   busy,
   onAvatarPress,
+  areaName,
 }: {
   fullName: string;
   avatarUrl?: string | null;
@@ -36,7 +38,9 @@ function HeroHeader({
   onToggle: () => void;
   busy: boolean;
   onAvatarPress: () => void;
+  areaName?: string;
 }) {
+  const { colors: Colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const nameTranslate = useRef(new Animated.Value(-18)).current;
   const avatarScale = useRef(new Animated.Value(0.6)).current;
@@ -140,10 +144,18 @@ function HeroHeader({
         }}
       >
         {/* Top row: greeting */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' }}>
-            {greet}
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600' }}>
+              {greet}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Ionicons name="location" size={12} color={Colors.amber.primary} />
+              <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '700' }}>
+                {areaName && areaName.length > 0 ? areaName : 'Locating…'}
+              </Text>
+            </View>
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.16)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
             <Animated.View style={{
               width: 6, height: 6, borderRadius: 3,
@@ -352,11 +364,12 @@ function HeroHeader({
 
 /* ── Stat card ────────────────────────────────────────────────────── */
 function StatCard({ label, value, icon, accent }: any) {
+  const { colors: Colors } = useTheme();
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: Colors.border,
@@ -380,16 +393,17 @@ function StatCard({ label, value, icon, accent }: any) {
             justifyContent: 'center',
           }}
         >
-          <Ionicons name={icon} size={15} color={accent ? Colors.amber.dark : Colors.navy.primary} />
+          <Ionicons name={icon} size={15} color={accent ? Colors.amber.dark : Colors.text.primary} />
         </View>
         <Text style={{ fontSize: 11, color: Colors.midGray, flex: 1, fontWeight: '600', letterSpacing: 0.3 }}>{label}</Text>
       </View>
-      <Text style={{ fontSize: 20, fontWeight: '800', color: Colors.navy.primary }}>{value}</Text>
+      <Text style={{ fontSize: 20, fontWeight: '800', color: Colors.text.primary }}>{value}</Text>
     </View>
   );
 }
 
 function OpenRequestCard({ job, onPress, index }: any) {
+  const { colors: Colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
@@ -418,7 +432,7 @@ function OpenRequestCard({ job, onPress, index }: any) {
       <Pressable
         onPress={onPress}
         style={{
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.surface,
           borderRadius: 18,
           borderWidth: 1.5,
           borderColor: Colors.amber.primary + '70',
@@ -444,7 +458,7 @@ function OpenRequestCard({ job, onPress, index }: any) {
           ) : null}
         </View>
 
-        <Text style={{ fontSize: 16, fontWeight: '800', color: Colors.navy.primary }} numberOfLines={2}>
+        <Text style={{ fontSize: 16, fontWeight: '800', color: Colors.text.primary }} numberOfLines={2}>
           {job.ai_diagnosis ?? 'Repair request'}
         </Text>
 
@@ -475,7 +489,7 @@ function OpenRequestCard({ job, onPress, index }: any) {
           <Text style={{ color: Colors.midGray, fontSize: 12, fontWeight: '600' }}>
             Tap to accept · decline · propose another time
           </Text>
-          <Ionicons name="chevron-forward" size={16} color={Colors.navy.primary} />
+          <Ionicons name="chevron-forward" size={16} color={Colors.text.primary} />
         </View>
       </Pressable>
     </Animated.View>
@@ -483,9 +497,11 @@ function OpenRequestCard({ job, onPress, index }: any) {
 }
 
 export default function Dashboard() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { profile } = useAuth();
+  const { areaName } = useLocation();
   const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
   const { openRequestsQuery, jobsQuery } = useJob({ proId: profile?.id, openRequests: true });
   const [busy, setBusy] = useState(false);
@@ -688,6 +704,7 @@ export default function Dashboard() {
           }}
           busy={busy}
           onAvatarPress={() => router.push('/(pro)/profile')}
+          areaName={proAddress ?? areaName}
         />
 
         <View style={{ paddingHorizontal: 20, gap: 18, marginTop: 18 }}>
@@ -699,7 +716,7 @@ export default function Dashboard() {
                 gap: 8,
                 paddingHorizontal: 12,
                 paddingVertical: 8,
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.surface,
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: Colors.border,
@@ -768,7 +785,7 @@ export default function Dashboard() {
               <View style={{ gap: 10 }}>
                 <View
                   style={{
-                    backgroundColor: Colors.white,
+                    backgroundColor: Colors.surface,
                     borderRadius: 16,
                     padding: 28,
                     alignItems: 'center',
@@ -779,7 +796,7 @@ export default function Dashboard() {
                   }}
                 >
                   <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.navy.primary + '10', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="hourglass-outline" size={24} color={Colors.navy.primary} />
+                    <Ionicons name="hourglass-outline" size={24} color={Colors.text.primary} />
                   </View>
                   <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.text.primary }}>No incoming requests</Text>
                   <Text style={{ fontSize: 12, color: Colors.midGray, textAlign: 'center' }}>
@@ -824,17 +841,17 @@ export default function Dashboard() {
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
             <Pressable
               onPress={() => router.push('/(pro)/job/active')}
-              style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, flexDirection: 'row', alignItems: 'center' }}
+              style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, flexDirection: 'row', alignItems: 'center' }}
             >
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.navy.primary + '12', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="briefcase" size={15} color={Colors.navy.primary} />
+                <Ionicons name="briefcase" size={15} color={Colors.text.primary} />
               </View>
               <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: Colors.text.primary }}>Active job</Text>
               <Ionicons name="chevron-forward" size={14} color={Colors.midGray} />
             </Pressable>
             <Pressable
               onPress={() => router.push('/(pro)/earnings')}
-              style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, flexDirection: 'row', alignItems: 'center' }}
+              style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border, gap: 6, flexDirection: 'row', alignItems: 'center' }}
             >
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: Colors.amber.primary + '20', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="wallet" size={15} color={Colors.amber.dark} />

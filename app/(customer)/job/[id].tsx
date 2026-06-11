@@ -19,27 +19,10 @@ import { createNotification } from '@/services/notifications';
 import { subscribeToJob } from '@/services/jobs';
 import { QueryKeys } from '@/constants/queryKeys';
 import { distanceKm, normalizeGeoPoint } from '@/utils/geo';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  error: '#C23232',
-  errorLight: '#FFF0F0',
-  success: '#1A7A4A',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 function Section({ children, style }: any) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{
       backgroundColor: Theme.creamCard, borderRadius: 20,
@@ -55,6 +38,7 @@ function Section({ children, style }: any) {
 }
 
 export default function JobTracking() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { id }  = useLocalSearchParams<{ id: string }>();
@@ -283,7 +267,7 @@ export default function JobTracking() {
         {scheduledLabel && !hasOpenCounter ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Theme.creamCard, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Theme.border }}>
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="calendar" size={16} color={Theme.navy} />
+              <Ionicons name="calendar" size={16} color={Theme.textDark} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 11, color: Theme.textLight, fontWeight: '700' }}>SCHEDULED</Text>

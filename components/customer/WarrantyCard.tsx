@@ -2,26 +2,7 @@ import { Text, View, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { formatDate } from '@/utils/formatDate';
-
-const Theme = {
-  navy: '#0F2057',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  successLight: '#E8F5E3',
-  warning: '#C07A00',
-  warningLight: '#FFF3E0',
-  error: '#C23232',
-  errorLight: '#FFF0F0',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type WarrantyCardProps = {
   appliance: string;
@@ -31,6 +12,7 @@ type WarrantyCardProps = {
 };
 
 export const WarrantyCard = ({ appliance, validUntil, expired, onPress }: WarrantyCardProps) => {
+  const { theme: Theme } = useTheme();
   const daysLeft = Math.ceil(
     (new Date(validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
@@ -42,7 +24,7 @@ export const WarrantyCard = ({ appliance, validUntil, expired, onPress }: Warran
     ? { color: Theme.error,   bg: Theme.errorLight,   icon: 'shield-outline',    statusText: 'Expired'         }
     : isExpiringSoon
       ? { color: Theme.warning, bg: Theme.warningLight, icon: 'shield-half',       statusText: `${daysLeft}d left` }
-      : { color: Theme.navy,    bg: Theme.navy + '0D',  icon: 'shield-checkmark',  statusText: 'Active'          };
+      : { color: Theme.blue,    bg: Theme.blue + '18',  icon: 'shield-checkmark',  statusText: 'Active'          };
 
   return (
     <Pressable

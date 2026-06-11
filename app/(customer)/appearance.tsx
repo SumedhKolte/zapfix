@@ -1,44 +1,14 @@
-import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
-
-const STORAGE_KEY = 'settings.appearance';
-
-type AppearanceMode = 'system' | 'light' | 'dark';
+import { useTheme, type AppearanceMode } from '@/hooks/useTheme';
 
 export default function Appearance() {
   const router = useRouter();
-  const [mode, setMode] = useState<AppearanceMode>('system');
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((value) => {
-      if (value === 'light' || value === 'dark' || value === 'system') {
-        setMode(value);
-      }
-    });
-  }, []);
-
-  const handleSelect = async (value: AppearanceMode) => {
-    setMode(value);
-    await AsyncStorage.setItem(STORAGE_KEY, value);
-  };
+  const { mode, setMode, theme: Theme } = useTheme();
 
   const options: { value: AppearanceMode; label: string; description: string }[] = [
     { value: 'system', label: 'System', description: 'Match your device settings' },
@@ -79,7 +49,7 @@ export default function Appearance() {
             return (
               <Pressable
                 key={option.value}
-                onPress={() => handleSelect(option.value)}
+                onPress={() => setMode(option.value)}
                 style={{
                   backgroundColor: Theme.creamCard,
                   borderRadius: 18,
@@ -118,7 +88,7 @@ export default function Appearance() {
           })}
 
           <Text style={{ color: Theme.textLight, fontSize: 12, marginTop: 6 }}>
-            Appearance preference is saved and will apply when theme support is enabled.
+            Your appearance preference applies instantly across the whole app.
           </Text>
         </View>
       </ScrollView>

@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { ProTheme } from '@/constants/proTheme';
+import { useProTheme } from '@/hooks/useTheme';
 import { ProCard } from './ProCard';
 import { Button } from '../ui/Button';
 import { CountdownTimer } from './CountdownTimer';
@@ -27,14 +27,15 @@ export const JobRequestCard = ({
   onDecline,
   onExpire
 }: JobRequestCardProps) => {
+  const ProTheme = useProTheme();
   return (
     <ProCard>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: ProTheme.colors.navy }}>New Job Request</Text>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: ProTheme.colors.text.primary }}>New Job Request</Text>
         <CountdownTimer seconds={90} onExpire={onExpire} />
       </View>
       <View style={{ marginTop: 12, gap: 8 }}>
-        <Text style={{ fontSize: 14, color: ProTheme.colors.navy, fontWeight: '600' }}>{fault}</Text>
+        <Text style={{ fontSize: 14, color: ProTheme.colors.text.primary, fontWeight: '600' }}>{fault}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="location" size={14} color={ProTheme.colors.text.muted} />
           <Text style={{ color: ProTheme.colors.text.muted }}>{distanceKm.toFixed(1)} km away</Text>

@@ -6,28 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { StatusPill } from '@/components/ui/StatusPill';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  error: '#C23232',
-  errorLight: '#FFF0F0',
-  success: '#1A7A4A',
-  successLight: '#E8F5EE',
-};
 
 function AnimatedRow({ children, delay = 0 }: any) {
   const opacity    = useRef(new Animated.Value(0)).current;
@@ -48,6 +29,7 @@ function AnimatedRow({ children, delay = 0 }: any) {
 }
 
 function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, danger = false, badge }: any) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
   return (
@@ -69,7 +51,7 @@ function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, d
           backgroundColor: iconBg ?? (danger ? Theme.error + '20' : Theme.navy + '10'),
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <Ionicons name={icon} size={18} color={danger ? Theme.error : Theme.navy} />
+          <Ionicons name={icon} size={18} color={danger ? Theme.error : Theme.textDark} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 15, fontWeight: '600', color: danger ? Theme.error : Theme.textDark }}>
@@ -96,6 +78,7 @@ function SettingsRow({ icon, label, sublabel, onPress, iconBg, chevron = true, d
 }
 
 function SectionHeader({ title }: { title: string }) {
+  const { theme: Theme } = useTheme();
   return (
     <Text style={{
       fontSize: 11, fontWeight: '700', color: Theme.textMid,
@@ -107,6 +90,7 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function Card({ children, style }: any) {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{
       backgroundColor: Theme.creamCard, borderRadius: 18,
@@ -121,6 +105,7 @@ function Card({ children, style }: any) {
 }
 
 export default function Profile() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { profile, signOut } = useAuth();
   const { jobsQuery } = useJob({ customerId: profile?.id });
@@ -227,7 +212,7 @@ export default function Profile() {
                     alignSelf: 'flex-start',
                   }}>
                     <Ionicons name="flash" size={11} color={Theme.amber} />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.navy }}>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: Theme.textDark }}>
                       {zapPoints.toLocaleString('en-IN')} ZP
                     </Text>
                   </View>
@@ -295,7 +280,7 @@ export default function Profile() {
                 }}
               >
                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: Theme.amber + '20', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="calendar-outline" size={22} color={Theme.navy} />
+                  <Ionicons name="calendar-outline" size={22} color={Theme.textDark} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '800', color: Theme.textDark }}>No upcoming bookings</Text>
@@ -329,7 +314,7 @@ export default function Profile() {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: hasOpenCounter ? Theme.amber + '20' : Theme.navy + '10', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="construct" size={17} color={Theme.navy} />
+                        <Ionicons name="construct" size={17} color={Theme.textDark} />
                       </View>
                       {job.status ? <StatusPill status={job.status} /> : null}
                     </View>

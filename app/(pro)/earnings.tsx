@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { getEarnings } from '@/services/earnings';
@@ -20,11 +20,12 @@ function formatPaidAt(value?: string | null) {
 }
 
 function SummaryTile({ icon, label, value, accent }: any) {
+  const { colors: Colors } = useTheme();
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: Colors.border,
@@ -45,7 +46,7 @@ function SummaryTile({ icon, label, value, accent }: any) {
         <Ionicons name={icon} size={16} color={accent ? Colors.success : Colors.blue.primary} />
       </View>
       <Text style={{ color: Colors.midGray, fontSize: 11, fontWeight: '700' }}>{label}</Text>
-      <Text style={{ color: Colors.navy.primary, fontSize: 16, fontWeight: '900' }} numberOfLines={1}>
+      <Text style={{ color: Colors.text.primary, fontSize: 16, fontWeight: '900' }} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -53,10 +54,11 @@ function SummaryTile({ icon, label, value, accent }: any) {
 }
 
 function EarningCard({ jobId, amount, grossAmount, commission, paidAt }: any) {
+  const { colors: Colors } = useTheme();
   return (
     <View
       style={{
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: Colors.border,
@@ -118,6 +120,7 @@ function EarningCard({ jobId, amount, grossAmount, commission, paidAt }: any) {
 }
 
 export default function Earnings() {
+  const { colors: Colors } = useTheme();
   const { profile } = useAuth();
   const earningsQuery = useQuery({
     queryKey: ['earnings', profile?.id ?? ''],
@@ -190,7 +193,7 @@ export default function Earnings() {
           ) : (
             <View
               style={{
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.surface,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: Colors.border,

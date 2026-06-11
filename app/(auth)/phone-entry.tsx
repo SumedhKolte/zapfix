@@ -21,20 +21,7 @@ import { phoneSchema } from '@/utils/validators';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { friendlyAuthError } from '@/utils/authErrors';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF'
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const logoSource = require('../../assets/icon.png');
 
@@ -45,6 +32,7 @@ type FormValues = {
 };
 
 export default function PhoneEntry() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { signInWithOtp } = useAuth();
   const { control, handleSubmit, watch, formState } = useForm<FormValues>({
@@ -241,7 +229,7 @@ export default function PhoneEntry() {
                         maxLength={10}
                         style={{
                           flex: 1,
-                          backgroundColor: Theme.white,
+                          backgroundColor: Theme.creamCard,
                           paddingHorizontal: 14,
                           fontSize: 15,
                           color: Theme.textDark,

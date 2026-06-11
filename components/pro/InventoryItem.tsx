@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { ProTheme } from '@/constants/proTheme';
+import { useProTheme } from '@/hooks/useTheme';
 import { ProCard } from './ProCard';
 import { formatCurrency } from '@/utils/formatCurrency';
 
@@ -16,6 +16,7 @@ type InventoryItemProps = {
 };
 
 export const InventoryItem = ({ name, category, partNumber, averagePrice, quantity, onIncrement, onDecrement }: InventoryItemProps) => {
+  const ProTheme = useProTheme();
   const isLowStock = quantity <= 1;
 
   return (
@@ -30,7 +31,7 @@ export const InventoryItem = ({ name, category, partNumber, averagePrice, quanti
             <Ionicons name="hardware-chip-outline" size={18} color={isLowStock ? ProTheme.colors.warning : ProTheme.colors.blue} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: ProTheme.colors.navy }} numberOfLines={2}>{name}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: ProTheme.colors.text.primary }} numberOfLines={2}>{name}</Text>
             <Text style={{ fontSize: 12, color: ProTheme.colors.text.muted, marginTop: 3 }} numberOfLines={1}>
               {[category, partNumber].filter(Boolean).join(' · ') || 'Inventory part'}
             </Text>
@@ -66,10 +67,10 @@ export const InventoryItem = ({ name, category, partNumber, averagePrice, quanti
               opacity: quantity === 0 ? 0.45 : 1,
             }}
           >
-            <Ionicons name="remove" size={18} color={ProTheme.colors.navy} />
+            <Ionicons name="remove" size={18} color={ProTheme.colors.text.primary} />
           </Pressable>
-          <View style={{ minWidth: 38, height: 36, borderRadius: 12, backgroundColor: ProTheme.colors.navy + '10', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
-            <Text style={{ fontSize: 15, fontWeight: '900', color: ProTheme.colors.navy }}>{quantity}</Text>
+          <View style={{ minWidth: 38, height: 36, borderRadius: 12, backgroundColor: ProTheme.colors.amber + '20', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
+            <Text style={{ fontSize: 15, fontWeight: '900', color: ProTheme.colors.text.primary }}>{quantity}</Text>
           </View>
           <Pressable
             onPress={onIncrement}

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/Button';
@@ -19,14 +19,11 @@ function AnimatedRow({ children, delay = 0 }: any) {
       Animated.spring(translateX, { toValue: 0, tension: 90, friction: 10, delay, useNativeDriver: true }),
     ]).start();
   }, []);
-  return (
-    <Animated.View style={{ opacity, transform: [{ translateX }] }}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={{ opacity, transform: [{ translateX }] }}>{children}</Animated.View>;
 }
 
 function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = false }: any) {
+  const { colors: Colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -37,31 +34,26 @@ function SettingsRow({ icon, label, sublabel, onPress, chevron = true, danger = 
         style={{
           flexDirection: 'row', alignItems: 'center',
           paddingHorizontal: 18, paddingVertical: 14,
-          backgroundColor: danger ? '#FFF0F0' : Colors.white,
+          backgroundColor: danger ? Colors.error + '14' : Colors.surface,
           borderBottomWidth: 1, borderBottomColor: Colors.border,
           gap: 14,
         }}
       >
-        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: danger ? '#C23232' + '20' : Colors.navy.primary + '10', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={icon} size={18} color={danger ? '#C23232' : Colors.navy.primary} />
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: danger ? Colors.error + '20' : Colors.amber.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={icon} size={18} color={danger ? Colors.error : Colors.amber.dark} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: danger ? '#C23232' : Colors.text.primary }}>
-            {label}
-          </Text>
-          {sublabel ? (
-            <Text style={{ fontSize: 12, color: Colors.midGray, marginTop: 1 }}>{sublabel}</Text>
-          ) : null}
+          <Text style={{ fontSize: 15, fontWeight: '600', color: danger ? Colors.error : Colors.text.primary }}>{label}</Text>
+          {sublabel ? <Text style={{ fontSize: 12, color: Colors.midGray, marginTop: 1 }}>{sublabel}</Text> : null}
         </View>
-        {chevron ? (
-          <Ionicons name="chevron-forward" size={16} color={danger ? '#C23232' + '80' : Colors.midGray} />
-        ) : null}
+        {chevron ? <Ionicons name="chevron-forward" size={16} color={danger ? Colors.error + '80' : Colors.midGray} /> : null}
       </Pressable>
     </Animated.View>
   );
 }
 
 function SectionHeader({ title }: { title: string }) {
+  const { colors: Colors } = useTheme();
   return (
     <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.text.secondary, letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 6 }}>
       {title.toUpperCase()}
@@ -70,18 +62,20 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 function Card({ children, style }: any) {
+  const { colors: Colors } = useTheme();
   return (
-    <View style={{ backgroundColor: Colors.white, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, ...style }}>
+    <View style={{ backgroundColor: Colors.surface, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border, ...style }}>
       {children}
     </View>
   );
 }
 
 function ProfileMetric({ label, value, icon, tone = 'navy' }: any) {
-  const color = tone === 'success' ? Colors.success : tone === 'amber' ? Colors.amber.dark : Colors.navy.primary;
-  const bg = tone === 'success' ? Colors.success + '12' : tone === 'amber' ? Colors.amber.light : Colors.navy.primary + '10';
+  const { colors: Colors } = useTheme();
+  const color = tone === 'success' ? Colors.success : tone === 'amber' ? Colors.amber.dark : Colors.text.primary;
+  const bg = tone === 'success' ? Colors.success + '12' : tone === 'amber' ? Colors.amber.light : Colors.amber.primary + '14';
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 }}>
+    <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 }}>
       <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name={icon} size={15} color={color} />
       </View>
@@ -92,6 +86,7 @@ function ProfileMetric({ label, value, icon, tone = 'navy' }: any) {
 }
 
 export default function ProProfile() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile, signOut } = useAuth();
   const { proDetailsQuery } = useProfile(profile?.id ?? '');
@@ -129,9 +124,10 @@ export default function ProProfile() {
     .slice(0, 2) ?? '?';
 
   const kycStatus = proDetailsQuery.data?.kyc_status ?? 'pending';
+  const trustScore = proDetailsQuery.data?.trust_score;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <Animated.View style={{ opacity: headerAnim }}>
           <LinearGradient colors={[Colors.navy.primary, Colors.navy.light, Colors.blue.primary]} locations={[0, 0.74, 1]} style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 54 }}>
@@ -153,18 +149,12 @@ export default function ProProfile() {
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.text.primary }}>
-                      {profile?.full_name ?? 'Professional'}
-                    </Text>
-                    <Text style={{ color: Colors.text.secondary, fontSize: 13, marginTop: 2 }}>
-                      {profile?.phone_number ?? '+91 XXXXX XXXXX'}
-                    </Text>
+                    <Text style={{ fontSize: 17, fontWeight: '800', color: Colors.text.primary }}>{profile?.full_name ?? 'Professional'}</Text>
+                    <Text style={{ color: Colors.text.secondary, fontSize: 13, marginTop: 2 }}>{profile?.phone_number ?? '+91 XXXXX XXXXX'}</Text>
                     {proDetailsQuery.data?.service_radius_km ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: Colors.amber.primary + '20', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
                         <Ionicons name="navigate" size={11} color={Colors.amber.dark} />
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.navy.primary }}>
-                          {proDetailsQuery.data.service_radius_km} km radius
-                        </Text>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: Colors.amber.dark }}>{proDetailsQuery.data.service_radius_km} km radius</Text>
                       </View>
                     ) : null}
                   </View>
@@ -176,9 +166,9 @@ export default function ProProfile() {
                   </Pressable>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <ProfileMetric label="Trust" value={trustScore != null ? `${Math.round(Number(trustScore))}` : '—'} icon="ribbon" tone="amber" />
                   <ProfileMetric label="Skill" value={`${proDetailsQuery.data?.ai_skill_score ?? 0}/10`} icon="star" tone="amber" />
                   <ProfileMetric label="KYC" value={kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)} icon="shield-checkmark" tone="success" />
-                  <ProfileMetric label="Radius" value={`${proDetailsQuery.data?.service_radius_km ?? 0} km`} icon="navigate" />
                 </View>
               </View>
             </Card>
@@ -186,37 +176,12 @@ export default function ProProfile() {
         </View>
 
         <AnimatedRow delay={120}>
-          <SectionHeader title="Professional Info" />
+          <SectionHeader title="Verification" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow
-              icon="shield-checkmark"
-              label="KYC Status"
-              sublabel={kycStatus.charAt(0).toUpperCase() + kycStatus.slice(1)}
-              onPress={() => router.push('/(pro)/onboarding/identity')}
-            />
-            <SettingsRow
-              icon="star"
-              label="Skill Score"
-              sublabel={`${proDetailsQuery.data?.ai_skill_score ?? 0} / 10`}
-              onPress={() => router.push('/(pro)/onboarding/skills')}
-            />
-            <SettingsRow
-              icon="hammer"
-              label="Retake Interview"
-              sublabel="Update your skills assessment"
-              onPress={() => router.push('/(pro)/onboarding/interview')}
-            />
-          </Card>
-        </AnimatedRow>
-
-        <AnimatedRow delay={150}>
-          <SectionHeader title="Onboarding" />
-          <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow icon="id-card" label="Identity Verification" sublabel="Aadhaar · Selfie" onPress={() => router.push('/(pro)/onboarding/identity')} />
-            <SettingsRow icon="construct" label="Skills" sublabel="Trades · Services" onPress={() => router.push('/(pro)/onboarding/skills')} />
-            <SettingsRow icon="chatbubbles" label="Interview" sublabel="Quick assessment" onPress={() => router.push('/(pro)/onboarding/interview')} />
-            <SettingsRow icon="briefcase" label="Toolkit" sublabel="Required tools" onPress={() => router.push('/(pro)/onboarding/toolkit')} />
-            <SettingsRow icon="cube" label="Inventory Setup" sublabel="Starter parts" onPress={() => router.push('/(pro)/onboarding/inventory')} />
+            <SettingsRow icon="id-card" label="Aadhaar & Identity" sublabel={`KYC · ${kycStatus}`} onPress={() => router.push('/(pro)/onboarding/aadhaar')} />
+            <SettingsRow icon="construct" label="Categories" sublabel="Trades you handle" onPress={() => router.push('/(pro)/onboarding/category')} />
+            <SettingsRow icon="hammer" label="Skill Assessment" sublabel={`Score ${proDetailsQuery.data?.ai_skill_score ?? 0} / 10`} onPress={() => router.push('/(pro)/onboarding/assessment')} />
+            <SettingsRow icon="briefcase" label="Toolkit" sublabel="Verified tools" onPress={() => router.push('/(pro)/onboarding/tools')} />
           </Card>
         </AnimatedRow>
 
@@ -239,25 +204,10 @@ export default function ProProfile() {
         <AnimatedRow delay={240}>
           <SectionHeader title="Support" />
           <Card style={{ marginHorizontal: 20 }}>
-            <SettingsRow
-              icon="chatbubble-ellipses"
-              label="Feedback"
-              sublabel="Share your thoughts"
-              onPress={() => Alert.alert('Feedback', 'Email us at pros@zapfix.in — we read every message.')}
-            />
-            <SettingsRow
-              icon="help-circle"
-              label="Help & Support"
-              sublabel="FAQs · Contact us"
-              onPress={() => Alert.alert('Help & Support', 'Pro support is available Mon–Sat, 9am–8pm IST.\n\nEmail: pros@zapfix.in')}
-            />
+            <SettingsRow icon="chatbubble-ellipses" label="Feedback" sublabel="Share your thoughts" onPress={() => Alert.alert('Feedback', 'Email us at pros@zapfix.in — we read every message.')} />
+            <SettingsRow icon="help-circle" label="Help & Support" sublabel="FAQs · Contact us" onPress={() => Alert.alert('Help & Support', 'Pro support is available Mon–Sat, 9am–8pm IST.\n\nEmail: pros@zapfix.in')} />
             <SettingsRow icon="document-text" label="Legal" sublabel="Service agreement · Privacy" onPress={() => router.push('/(pro)/legal')} />
-            <SettingsRow
-              icon="information-circle"
-              label="About Zapfix"
-              sublabel="Version 1.0.0"
-              onPress={() => Alert.alert('Zapfix', "Version 1.0.0\n\nIndia's smartest home repair platform powered by AI.\n\n© 2025 Zapfix Technologies")}
-            />
+            <SettingsRow icon="information-circle" label="About Zapfix" sublabel="Version 1.0.0" onPress={() => Alert.alert('Zapfix', "Version 1.0.0\n\nIndia's smartest home repair platform powered by AI.\n\n© 2025 Zapfix Technologies")} />
           </Card>
         </AnimatedRow>
 

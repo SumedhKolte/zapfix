@@ -4,6 +4,11 @@ import type { ProOnboardingStep } from './mutations';
 
 export type ProDetails = Tables<'pro_details'> & {
   onboarding_step?: ProOnboardingStep | null;
+  // New onboarding columns (added in migration 20260608120000) — declared here
+  // until the generated database types are regenerated.
+  selfie_match_score?: number | null;
+  background_status?: 'pending' | 'clear' | 'review' | null;
+  trust_score?: number | null;
 };
 
 export const getProfile = async (userId: string) => {

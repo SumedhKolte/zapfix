@@ -7,7 +7,8 @@ import {
 } from 'react-native';
 import type { TouchableOpacityProps, StyleProp, ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import type { ColorPalette } from '@/constants/colors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -57,7 +58,9 @@ const sizeStyles: Record<
   },
 };
 
-const variantStyles: Record<
+const buildVariantStyles = (
+  colors: ColorPalette
+): Record<
   ButtonVariant,
   {
     background: string;
@@ -65,29 +68,29 @@ const variantStyles: Record<
     border?: string;
     loaderColor: string;
   }
-> = {
+> => ({
   primary: {
-    background: Colors.amber.primary,
-    text: Colors.navy.primary,
-    loaderColor: Colors.navy.primary,
+    background: colors.amber.primary,
+    text: colors.navy.primary,
+    loaderColor: colors.navy.primary,
   },
   secondary: {
-    background: Colors.white,
-    text: Colors.navy.primary,
-    border: Colors.navy.primary,
-    loaderColor: Colors.navy.primary,
+    background: colors.surface,
+    text: colors.text.primary,
+    border: colors.border,
+    loaderColor: colors.text.primary,
   },
   danger: {
-    background: Colors.error,
-    text: Colors.white,
-    loaderColor: Colors.white,
+    background: colors.error,
+    text: colors.white,
+    loaderColor: colors.white,
   },
   ghost: {
     background: 'transparent',
-    text: Colors.navy.primary,
-    loaderColor: Colors.navy.primary,
+    text: colors.text.primary,
+    loaderColor: colors.text.primary,
   },
-};
+});
 
 export const Button = ({
   variant = 'primary',
@@ -101,8 +104,9 @@ export const Button = ({
   style,
   ...rest
 }: ButtonProps) => {
+  const { colors } = useTheme();
   const sizeStyle = sizeStyles[size];
-  const variantStyle = variantStyles[variant];
+  const variantStyle = buildVariantStyles(colors)[variant];
   const isDisabled = disabled || loading;
 
   const baseStyle: ViewStyle = {

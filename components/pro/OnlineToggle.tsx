@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { ProTheme } from '@/constants/proTheme';
+import { useProTheme } from '@/hooks/useTheme';
 
 type OnlineToggleProps = {
   isOnline: boolean;
@@ -11,6 +11,7 @@ type OnlineToggleProps = {
 };
 
 export const OnlineToggle = ({ isOnline, onToggle, busy }: OnlineToggleProps) => {
+  const ProTheme = useProTheme();
   const pulse = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export const OnlineToggle = ({ isOnline, onToggle, busy }: OnlineToggleProps) =>
         <Ionicons name={isOnline ? 'flash' : 'moon'} size={20} color={ProTheme.colors.text.inverse} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 15, fontWeight: '800', color: ProTheme.colors.navy }}>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: ProTheme.colors.text.primary }}>
           {busy ? 'Updating…' : isOnline ? 'You are Online' : 'You are Offline'}
         </Text>
         <Text style={{ fontSize: 12, color: ProTheme.colors.text.secondary, marginTop: 2 }}>

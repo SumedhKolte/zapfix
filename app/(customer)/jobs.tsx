@@ -9,24 +9,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { JobHistoryItem } from '@/components/customer/JobHistoryItem';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 function EmptyJobState({ tab, onPress }: { tab: string; onPress: () => void }) {
+  const { theme: Theme } = useTheme();
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -49,7 +35,7 @@ function EmptyJobState({ tab, onPress }: { tab: string; onPress: () => void }) {
       }}>
         <Ionicons
           name={tab === 'active' ? 'briefcase-outline' : 'checkmark-circle-outline'}
-          size={36} color={Theme.navy}
+          size={36} color={Theme.textDark}
         />
       </View>
       <Text style={{ fontSize: 17, fontWeight: '700', color: Theme.textDark, marginBottom: 8 }}>
@@ -76,6 +62,7 @@ function EmptyJobState({ tab, onPress }: { tab: string; onPress: () => void }) {
 }
 
 export default function Jobs() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { jobsQuery } = useJob({ customerId: profile?.id });
@@ -174,7 +161,6 @@ export default function Jobs() {
         ) : (
           <FlashList
             data={filteredJobs}
-            estimatedItemSize={84}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 20 }}

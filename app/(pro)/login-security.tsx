@@ -4,11 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 
 export default function ProLoginSecurity() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile, signOut } = useAuth();
 
@@ -39,25 +40,25 @@ export default function ProLoginSecurity() {
         </LinearGradient>
 
         <View style={{ paddingHorizontal: 20, marginTop: -10, gap: 16 }}>
-          <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.text.primary }}>Phone number</Text>
             <Text style={{ color: Colors.text.secondary, marginTop: 6, fontSize: 14 }}>{profile?.phone_number ?? 'Not available'}</Text>
             <Text style={{ color: Colors.midGray, fontSize: 12, marginTop: 6 }}>
               Used to sign in and verify your Pro account.
             </Text>
-            <Pressable onPress={handlePhoneChange} style={{ marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.navy.primary + '10', alignSelf: 'flex-start' }}>
-              <Text style={{ color: Colors.navy.primary, fontSize: 12, fontWeight: '700' }}>Request change</Text>
+            <Pressable onPress={handlePhoneChange} style={{ marginTop: 12, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.amber.primary + '20', alignSelf: 'flex-start' }}>
+              <Text style={{ color: Colors.text.primary, fontSize: 12, fontWeight: '700' }}>Request change</Text>
             </Pressable>
           </View>
 
-          <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.text.primary }}>Bank account on file</Text>
             <Text style={{ color: Colors.text.secondary, marginTop: 6, fontSize: 13 }}>
               Your payouts are deposited into the account verified during onboarding. Contact pros@zapfix.in to update.
             </Text>
           </View>
 
-          <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.text.primary }}>Security tips</Text>
             <Text style={{ color: Colors.text.secondary, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
               Never share OTPs. Zapfix will never ask for your password, PIN, or bank details over phone or email.

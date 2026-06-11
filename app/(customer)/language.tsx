@@ -6,24 +6,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const STORAGE_KEY = 'settings.language';
 
 type LanguageOption = { value: string; label: string; description: string };
 
 export default function Language() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const [language, setLanguage] = useState('en');
 

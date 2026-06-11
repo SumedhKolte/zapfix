@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import type { PressableStateCallbackType } from 'react-native';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 type CardProps = {
   children: ReactNode;
@@ -11,11 +11,14 @@ type CardProps = {
 };
 
 export const Card = ({ children, padding = 16, onPress }: CardProps) => {
+  const { colors } = useTheme();
   const baseStyle = {
     padding,
-    backgroundColor: Colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 16,
-    shadowColor: Colors.navy.primary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.navy.primary,
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 3
@@ -34,9 +37,5 @@ export const Card = ({ children, padding = 16, onPress }: CardProps) => {
     );
   }
 
-  return (
-    <View style={baseStyle}>
-      {children}
-    </View>
-  );
-}; // ✅ Added missing closing bracket
+  return <View style={baseStyle}>{children}</View>;
+};

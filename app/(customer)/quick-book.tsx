@@ -23,23 +23,7 @@ import {
   reverseGeocode,
   toWktPoint,
 } from '@/utils/geo';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  success: '#1A7A4A',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 type DateOption = { date: Date; label: string; sublabel: string };
 
@@ -87,6 +71,7 @@ const buildServiceAddressQuery = (address: { label?: string | null; address_text
 };
 
 export default function QuickBook() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { category, issueKey } = useLocalSearchParams<{ category?: string; issueKey?: string }>();
   const { profile } = useAuth();
@@ -346,7 +331,7 @@ export default function QuickBook() {
           {/* Address picker */}
           <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Ionicons name="location-outline" size={16} color={Theme.navy} />
+              <Ionicons name="location-outline" size={16} color={Theme.textDark} />
               <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Service address</Text>
             </View>
             {addressOptions.length === 0 ? (
@@ -391,7 +376,7 @@ export default function QuickBook() {
           {/* Date picker */}
           <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Ionicons name="calendar-outline" size={16} color={Theme.navy} />
+              <Ionicons name="calendar-outline" size={16} color={Theme.textDark} />
               <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a day</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -423,7 +408,7 @@ export default function QuickBook() {
           {/* Time picker */}
           <View style={{ backgroundColor: Theme.creamCard, borderRadius: 20, padding: 16, shadowColor: Theme.navy, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Ionicons name="time-outline" size={16} color={Theme.navy} />
+              <Ionicons name="time-outline" size={16} color={Theme.textDark} />
               <Text style={{ fontWeight: '800', color: Theme.textDark, fontSize: 14 }}>Pick a time</Text>
             </View>
             {timeSlots.length === 0 ? (
@@ -478,7 +463,7 @@ export default function QuickBook() {
           <View style={{ backgroundColor: Theme.amberLight, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Theme.amber + '40' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: Theme.textMid }}>Amount to pay now</Text>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: Theme.navy }}>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: Theme.textDark }}>
                 {formatCurrency(issue.pricePaise)}
               </Text>
             </View>

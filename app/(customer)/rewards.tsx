@@ -6,31 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  amberBorder: '#F5B80040',
-  blue: '#1B6FE8',
-  blueLight: '#E8F0FF',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  success: '#1A7A4A',
-  successLight: '#E8F5EE',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const TIERS = [
   { name: 'Spark',    min: 0,    max: 499,  color: '#C07A00', icon: 'flash-outline' },
   { name: 'Silver',   min: 500,  max: 1499, color: '#8E97B5', icon: 'star-outline' },
   { name: 'Gold',     min: 1500, max: 2999, color: '#F5B800', icon: 'star' },
-  { name: 'Platinum', min: 3000, max: 99999,color: Theme.blue, icon: 'diamond' },
+  { name: 'Platinum', min: 3000, max: 99999,color: '#1B6FE8', icon: 'diamond' },
 ];
 
 const ACHIEVEMENTS = [
@@ -43,9 +25,9 @@ const ACHIEVEMENTS = [
 ];
 
 const OFFERS = [
-  { id: 'o1', label: '10% off', desc: 'On your next AC service', icon: 'thermometer', bg: Theme.blueLight,  accent: Theme.blue  },
-  { id: 'o2', label: '₹150 off', desc: 'On any repair above ₹999', icon: 'cash',       bg: Theme.amberLight, accent: Theme.amber },
-  { id: 'o3', label: 'Free check', desc: 'First diagnosis is free',  icon: 'hardware-chip', bg: Theme.successLight, accent: Theme.success },
+  { id: 'o1', label: '10% off', desc: 'On your next AC service', icon: 'thermometer', tone: 'blue' as const },
+  { id: 'o2', label: '₹150 off', desc: 'On any repair above ₹999', icon: 'cash', tone: 'amber' as const },
+  { id: 'o3', label: 'Free check', desc: 'First diagnosis is free', icon: 'hardware-chip', tone: 'success' as const },
 ];
 
 function AnimatedCard({ children, delay = 0, style }: any) {
@@ -81,6 +63,7 @@ function TierBadge({ tier }: { tier: typeof TIERS[number] }) {
 }
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const { theme: Theme } = useTheme();
   const progress = useRef(new Animated.Value(0)).current;
   const pct = Math.min(value / max, 1);
 
@@ -98,6 +81,7 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
 }
 
 function AchievementBadge({ achievement, unlocked, delay }: any) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(unlocked ? 1 : 0.92)).current;
 
   useEffect(() => {
@@ -145,7 +129,14 @@ function AchievementBadge({ achievement, unlocked, delay }: any) {
 }
 
 function OfferCard({ offer }: { offer: typeof OFFERS[number] }) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
+  const toneMap = {
+    blue: { bg: Theme.blueLight, accent: Theme.blue },
+    amber: { bg: Theme.amberLight, accent: Theme.amber },
+    success: { bg: Theme.successLight, accent: Theme.success },
+  } as const;
+  const { bg, accent } = toneMap[offer.tone];
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -154,21 +145,21 @@ function OfferCard({ offer }: { offer: typeof OFFERS[number] }) {
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start()}
         onPress={() => Alert.alert('Offer Applied', `${offer.desc} has been activated.`)}
         style={{
-          width: 150, height: 120, backgroundColor: offer.bg,
+          width: 150, height: 120, backgroundColor: bg,
           borderRadius: 16, padding: 14,
           marginRight: 10, borderWidth: 1,
-          borderColor: offer.accent + '30',
+          borderColor: accent + '30',
           justifyContent: 'flex-start',
         }}
       >
         <View style={{
           width: 36, height: 36, borderRadius: 10,
-          backgroundColor: offer.accent + '20',
+          backgroundColor: accent + '20',
           alignItems: 'center', justifyContent: 'center', marginBottom: 8,
         }}>
-          <Ionicons name={offer.icon as any} size={18} color={offer.accent} />
+          <Ionicons name={offer.icon as any} size={18} color={accent} />
         </View>
-        <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontSize: 17, fontWeight: '800', color: offer.accent }}>{offer.label}</Text>
+        <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontSize: 17, fontWeight: '800', color: accent }}>{offer.label}</Text>
         <Text numberOfLines={2} ellipsizeMode='tail' style={{ fontSize: 11, color: Theme.textMid, marginTop: 3, lineHeight: 15 }}>{offer.desc}</Text>
       </Pressable>
     </Animated.View>
@@ -176,6 +167,7 @@ function OfferCard({ offer }: { offer: typeof OFFERS[number] }) {
 }
 
 export default function Rewards() {
+  const { theme: Theme } = useTheme();
   const { profile } = useAuth();
   const { jobsQuery } = useJob({ customerId: profile?.id });
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -482,7 +474,7 @@ export default function Rewards() {
                     backgroundColor: Theme.navy + '10',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Ionicons name={item.icon as any} size={16} color={Theme.navy} />
+                    <Ionicons name={item.icon as any} size={16} color={Theme.textDark} />
                   </View>
                   <Text style={{ flex: 1, fontSize: 13, color: Theme.textMid }}>{item.label}</Text>
                   <Text style={{ fontSize: 13, fontWeight: '800', color: Theme.amber }}>{item.pts}</Text>

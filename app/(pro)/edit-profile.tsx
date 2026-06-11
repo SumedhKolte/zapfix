@@ -5,13 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
 export default function ProEditProfile() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { proDetailsQuery, updateProfile, updateProDetails } = useProfile(profile?.id ?? '');
@@ -67,7 +68,7 @@ export default function ProEditProfile() {
         </LinearGradient>
 
         <View style={{ paddingHorizontal: 20, marginTop: -10, gap: 16 }}>
-          <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Input
               label="Full name"
               value={fullName}
@@ -88,7 +89,7 @@ export default function ProEditProfile() {
             </Text>
           </View>
 
-          <View style={{ backgroundColor: Colors.white, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Input
               label="Service radius (km)"
               value={radius}

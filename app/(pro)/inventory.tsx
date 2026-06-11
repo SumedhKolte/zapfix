@@ -5,16 +5,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { getInventory, updateInventoryItem } from '@/services/inventory';
 import { InventoryItem } from '@/components/pro/InventoryItem';
 
 function InventoryMetric({ icon, label, value, tone = 'navy' }: any) {
-  const color = tone === 'warning' ? Colors.warning : tone === 'success' ? Colors.success : Colors.navy.primary;
-  const bg = tone === 'warning' ? Colors.amber.light : tone === 'success' ? Colors.success + '12' : Colors.navy.primary + '10';
+  const { colors: Colors } = useTheme();
+  const color = tone === 'warning' ? Colors.warning : tone === 'success' ? Colors.success : Colors.text.primary;
+  const bg = tone === 'warning' ? Colors.amber.light : tone === 'success' ? Colors.success + '12' : Colors.amber.primary + '14';
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 }}>
+    <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, padding: 14, gap: 8 }}>
       <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name={icon} size={16} color={color} />
       </View>
@@ -25,6 +26,7 @@ function InventoryMetric({ icon, label, value, tone = 'navy' }: any) {
 }
 
 export default function Inventory() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const inventoryQuery = useQuery({
@@ -125,7 +127,7 @@ export default function Inventory() {
           ) : (
             <View
               style={{
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.surface,
                 borderRadius: 14,
                 borderWidth: 1,
                 borderColor: Colors.border,

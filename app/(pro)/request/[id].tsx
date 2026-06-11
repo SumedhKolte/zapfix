@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
@@ -27,6 +27,7 @@ const buildSuggestionSlots = (anchor: Date): Date[] => {
 };
 
 export default function ProRequestDetail() {
+  const { colors: Colors } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
@@ -132,7 +133,7 @@ export default function ProRequestDetail() {
 
   if (!job) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: Colors.midGray }}>Loading…</Text>
         </View>
@@ -141,7 +142,7 @@ export default function ProRequestDetail() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={[Colors.navy.primary, Colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 28 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -176,13 +177,13 @@ export default function ProRequestDetail() {
               <Ionicons name="calendar" size={18} color={Colors.amber.dark} />
               <Text style={{ fontSize: 12, fontWeight: '800', color: Colors.amber.dark, letterSpacing: 0.5 }}>CUSTOMER REQUESTED</Text>
             </View>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.navy.primary }}>{scheduledLabel}</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: Colors.text.primary }}>{scheduledLabel}</Text>
           </View>
 
           {/* Diagnosis */}
-          <View style={{ backgroundColor: Colors.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+          <View style={{ backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
             <Text style={{ fontSize: 12, fontWeight: '800', color: Colors.midGray, letterSpacing: 0.5, marginBottom: 6 }}>AI DIAGNOSIS</Text>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.navy.primary }}>{job.ai_diagnosis ?? '—'}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.text.primary }}>{job.ai_diagnosis ?? '—'}</Text>
             {job.ai_confidence ? (
               <Text style={{ fontSize: 12, color: Colors.midGray, marginTop: 4 }}>{Math.round(job.ai_confidence * 100)}% confidence</Text>
             ) : null}
@@ -205,9 +206,9 @@ export default function ProRequestDetail() {
           {/* Estimated payout */}
           {job.est_cost_min && job.est_cost_max ? (
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1, backgroundColor: Colors.white, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border }}>
+              <View style={{ flex: 1, backgroundColor: Colors.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.border }}>
                 <Text style={{ fontSize: 11, color: Colors.midGray, fontWeight: '700', letterSpacing: 0.5 }}>EST. JOB VALUE</Text>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: Colors.navy.primary, marginTop: 4 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: Colors.text.primary, marginTop: 4 }}>
                   {formatCostEstimate(job.est_cost_min, job.est_cost_max) ?? formatCurrency(job.est_cost_min ?? 0)}
                 </Text>
               </View>
@@ -222,9 +223,9 @@ export default function ProRequestDetail() {
 
           {/* Propose alt time card */}
           {showPropose ? (
-            <View style={{ backgroundColor: Colors.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, gap: 12 }}>
+            <View style={{ backgroundColor: Colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.navy.primary }}>Propose a different time</Text>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: Colors.text.primary }}>Propose a different time</Text>
                 <Pressable onPress={() => { setShowPropose(false); setProposed(null); }} hitSlop={10}>
                   <Ionicons name="close" size={20} color={Colors.midGray} />
                 </Pressable>
@@ -258,7 +259,7 @@ export default function ProRequestDetail() {
                 multiline
                 placeholder="Optional message to the customer"
                 placeholderTextColor={Colors.midGray}
-                style={{ minHeight: 70, backgroundColor: Colors.offWhite, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, padding: 12, color: Colors.darkGray, fontSize: 13, textAlignVertical: 'top' }}
+                style={{ minHeight: 70, backgroundColor: Colors.bg, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, padding: 12, color: Colors.darkGray, fontSize: 13, textAlignVertical: 'top' }}
               />
 
               <Button onPress={handlePropose} loading={busy === 'propose'} disabled={!proposed || busy !== null}>

@@ -1,27 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Animated, Pressable, View, Text, StyleSheet } from 'react-native';
+import { Animated, Pressable, View, Text } from 'react-native';
 import { useRef, useEffect } from 'react';
 
 import { ActiveJobTracker } from '@/components/customer/ActiveJobTracker';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 /* ── Animated icon for regular tabs ── */
 function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
+  const { theme: Theme } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
@@ -55,7 +42,8 @@ function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
     >
       <Animated.View
         style={{
-          ...StyleSheet.absoluteFillObject,
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: Theme.amber,
           opacity: bgOpacity,
           borderRadius: 18,
@@ -72,6 +60,7 @@ function TabBarIcon({ name, focused }: { name: any; focused: boolean }) {
 
 /* ── Floating centre Diagnose button ── */
 function CenterTabButton({ onPress, accessibilityState }: any) {
+  const { theme: Theme } = useTheme();
   const focused = accessibilityState?.selected;
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -130,6 +119,7 @@ function CenterTabButton({ onPress, accessibilityState }: any) {
 
 /* ── Layout ── */
 export default function CustomerLayout() {
+  const { theme: Theme } = useTheme();
   return (
     <View style={{ flex: 1 }}>
     <Tabs

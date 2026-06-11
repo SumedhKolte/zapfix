@@ -9,7 +9,7 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
-import { ProTheme } from '@/constants/proTheme';
+import { useProTheme } from '@/hooks/useTheme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -19,6 +19,7 @@ type CountdownTimerProps = {
 };
 
 export const CountdownTimer = ({ seconds, onExpire }: CountdownTimerProps) => {
+  const ProTheme = useProTheme();
   const radius = 36;
   const strokeWidth = 6;
   const circumference = 2 * Math.PI * radius;

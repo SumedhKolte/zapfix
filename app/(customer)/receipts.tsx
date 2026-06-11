@@ -9,25 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/formatCurrency';
-
-const Theme = {
-  navy: '#0F2057',
-  navyMid: '#1A3580',
-  amber: '#F5B800',
-  amberLight: '#FFF8D6',
-  blue: '#1B6FE8',
-  cream: '#F7F5F0',
-  creamCard: '#FFFFFF',
-  textDark: '#0A0F1E',
-  textMid: '#4A5578',
-  textLight: '#8E97B5',
-  border: '#E2E6F0',
-  white: '#FFFFFF',
-  success: '#1A7A4A',
-  successLight: '#E8F5EE',
-  error: '#C23232',
-  errorLight: '#FFF0F0',
-};
+import { useTheme } from '@/hooks/useTheme';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   searching:  { label: 'Awaiting Pro',   color: '#1A3580', bg: '#FFF8D6' },
@@ -42,6 +24,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 };
 
 function ReceiptItem({ job, index, onPress }: any) {
+  const { theme: Theme } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(12)).current;
 
@@ -113,8 +96,8 @@ function ReceiptItem({ job, index, onPress }: any) {
             Receipt #{job.id.slice(-6).toUpperCase()}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: Theme.navy }}>View receipt</Text>
-            <Ionicons name="chevron-forward" size={14} color={Theme.navy} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: Theme.textDark }}>View receipt</Text>
+            <Ionicons name="chevron-forward" size={14} color={Theme.textDark} />
           </View>
         </View>
       </Pressable>
@@ -123,6 +106,7 @@ function ReceiptItem({ job, index, onPress }: any) {
 }
 
 export default function Receipts() {
+  const { theme: Theme } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
   const { jobsQuery } = useJob({ customerId: profile?.id });
@@ -185,7 +169,7 @@ export default function Receipts() {
         ) : receipts.length === 0 ? (
           <View style={{ paddingVertical: 60, alignItems: 'center', gap: 12 }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: Theme.navy + '0F', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="receipt-outline" size={32} color={Theme.navy} />
+              <Ionicons name="receipt-outline" size={32} color={Theme.textDark} />
             </View>
             <Text style={{ fontSize: 17, fontWeight: '800', color: Theme.textDark }}>No receipts yet</Text>
             <Text style={{ fontSize: 13, color: Theme.textMid, textAlign: 'center', maxWidth: 240 }}>
