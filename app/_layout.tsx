@@ -87,8 +87,21 @@ const RootNavigation = () => {
 
     if (profile.role === 'pro') {
       const onboardingStep = proDetailsQuery.data?.onboarding_step;
+      const inOnboarding = inProGroup && (segments as string[])[1] === 'onboarding';
+      // Profile is allowed for in-progress pros: it hosts the "Complete
+      // Registration" card and the per-step review, so leaving onboarding for
+      // Profile must not bounce them straight back to their saved step.
+      const onProfile = inProGroup && (segments as string[])[1] === 'profile';
       if (onboardingStep && onboardingStep !== 'complete') {
-        router.replace(`/(pro)/onboarding/${onboardingStep}`);
+        // Gate the pro into the registration flow at their saved step — but only
+        // when they aren't already inside onboarding or on Profile. Once they're
+        // in the flow, leave navigation alone so they can move forward and back
+        // between steps without being yanked to the saved step on every
+        // transition. We also don't kick a *completed* pro out of onboarding, so
+        // they can revisit and edit individual steps from the details view.
+        if (!inOnboarding && !onProfile) {
+          router.replace(`/(pro)/onboarding/${onboardingStep}`);
+        }
       } else if (!inProGroup) {
         router.replace('/(pro)/dashboard');
       }

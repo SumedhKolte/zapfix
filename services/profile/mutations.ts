@@ -21,6 +21,7 @@ export type ProDetailsUpdate = TablesUpdate<'pro_details'> & {
   selfie_match_score?: number | null;
   background_status?: 'pending' | 'clear' | 'review' | null;
   trust_score?: number | null;
+  verification_status?: 'pending' | 'verified' | 'rejected' | null;
 };
 
 export const createProfile = async (payload: TablesInsert<'profiles'>) => {

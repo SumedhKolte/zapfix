@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Text, View } from 'react-native';
+import { Alert, Animated, Easing, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useOnboardingBack } from '@/components/pro/OnboardingChrome';
 
 type Signal = { label: string; points: number; max: number; done: boolean };
 
 export default function Trust() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
+  // Back steps to the previous step (Tools) so the pro can review every step
+  // before submitting; in edit mode it returns to the details view.
+  const { goBack, canGoBack } = useOnboardingBack('trust', isEdit);
   const { colors } = useTheme();
   const { profile } = useAuth();
   const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
@@ -61,14 +67,27 @@ export default function Trust() {
   const tier =
     total >= 85 ? { label: 'Elite Pro', color: colors.success } :
     total >= 65 ? { label: 'Trusted Pro', color: colors.amber.dark } :
-    { label: 'Verified Pro', color: colors.blue.primary };
+    { label: 'Building Trust', color: colors.blue.primary };
 
   const goLive = async () => {
     if (!profile?.id) return;
     setSubmitting(true);
     try {
-      await updateProDetails({ id: profile.id, data: { trust_score: total, onboarding_step: 'complete' } });
-      router.replace('/(pro)/dashboard');
+      // All 8 steps done — mark the application submitted. It now sits in review
+      // ('Verification Pending') until the platform approves it; never downgrade
+      // an already-verified pro who's just editing this step.
+      const currentV = d?.verification_status;
+      await updateProDetails({
+        id: profile.id,
+        data: {
+          trust_score: total,
+          onboarding_step: 'complete',
+          ...(currentV === 'verified' ? {} : { verification_status: 'pending' as const }),
+        },
+      });
+      // Editing from the details view returns there; finishing the flow goes live.
+      if (isEdit) router.back();
+      else router.replace('/(pro)/dashboard');
     } catch {
       Alert.alert('Error', 'Could not finish onboarding. Please try again.');
     } finally {
@@ -78,8 +97,16 @@ export default function Trust() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
-      <LinearGradient colors={[colors.navy.primary, colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 40, alignItems: 'center' }}>
-        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>STEP 8 OF 8 · TRUST SCORE</Text>
+      <LinearGradient colors={[colors.navy.primary, colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40, alignItems: 'center' }}>
+        {canGoBack ? (
+          <Pressable
+            onPress={goBack}
+            style={{ position: 'absolute', top: 16, left: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}
+          >
+            <Ionicons name="arrow-back" size={20} color={colors.white} />
+          </Pressable>
+        ) : null}
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 12 }}>STEP 8 OF 8 · TRUST SCORE</Text>
         <View
           style={{
             width: 150, height: 150, borderRadius: 75, marginTop: 18,
@@ -116,7 +143,7 @@ export default function Trust() {
 
       <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}>
         <Button onPress={goLive} loading={submitting} disabled={submitting || proDetailsQuery.isLoading}>
-          Go live & start earning
+          {isEdit ? 'Save & return' : 'Submit for verification'}
         </Button>
       </View>
     </SafeAreaView>

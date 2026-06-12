@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/Button';
-import { OnboardingCard, OnboardingScaffold } from '@/components/pro/OnboardingChrome';
+import { OnboardingCard, OnboardingScaffold, advanceOnboarding } from '@/components/pro/OnboardingChrome';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -13,13 +13,24 @@ import { uploadKycDocument } from '@/services/uploads';
 
 export default function Selfie() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
   const { colors } = useTheme();
   const { profile } = useAuth();
-  const { updateProDetails } = useProfile(profile?.id ?? '');
+  const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
 
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Restore the saved liveness result on return so the step shows as verified
+  // (the selfie image itself isn't stored — retaking re-runs the match).
+  const saved = proDetailsQuery.data;
+  useEffect(() => {
+    if (saved?.liveness_verified && matchScore === null) {
+      setMatchScore(saved.selfie_match_score ?? 96);
+    }
+  }, [saved?.liveness_verified]);
 
   const captureSelfie = async () => {
     if (!profile?.id) return;
@@ -54,10 +65,11 @@ export default function Selfie() {
         data: {
           liveness_verified: true,
           selfie_match_score: matchScore,
-          onboarding_step: 'category',
+          onboarding_step: advanceOnboarding(proDetailsQuery.data?.onboarding_step, 'selfie'),
         },
       });
-      router.replace('/(pro)/onboarding/category');
+      if (isEdit) router.back();
+      else router.replace('/(pro)/onboarding/category');
     } catch {
       Alert.alert('Error', 'Could not save your selfie verification. Please try again.');
     } finally {
@@ -68,6 +80,7 @@ export default function Selfie() {
   return (
     <OnboardingScaffold
       stepKey="selfie"
+      isEdit={isEdit}
       eyebrow="LIVENESS"
       title="Selfie match"
       subtitle="Take a quick selfie so we can match your face to your Aadhaar photo and confirm it's really you."
@@ -105,7 +118,7 @@ export default function Selfie() {
       </OnboardingCard>
 
       <Button variant="secondary" loading={busy} onPress={captureSelfie}>
-        {selfieUri ? 'Retake selfie' : 'Take selfie'}
+        {selfieUri || matchScore !== null ? 'Retake selfie' : 'Take selfie'}
       </Button>
     </OnboardingScaffold>
   );

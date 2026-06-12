@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/Button';
-import { OnboardingCard, OnboardingScaffold } from '@/components/pro/OnboardingChrome';
+import { OnboardingCard, OnboardingScaffold, advanceOnboarding } from '@/components/pro/OnboardingChrome';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -39,12 +39,28 @@ const expectedToolsForTrades = (trades: string[]) => {
 
 export default function Tools() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
   const { colors } = useTheme();
   const { profile } = useAuth();
-  const { updateProDetails } = useProfile(profile?.id ?? '');
+  const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
   const [toolkitUri, setToolkitUri] = useState<string | null>(null);
   const [verification, setVerification] = useState<ToolkitResponse | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Restore the saved toolkit verdict on return (the photo itself isn't stored —
+  // retaking re-runs the AI check). Lets the pro continue without re-uploading.
+  const saved = proDetailsQuery.data;
+  const hasSavedTools = saved?.tools_verified != null;
+  useEffect(() => {
+    if (hasSavedTools && verification === null) {
+      setVerification({
+        verified_tools: [],
+        missing_tools: saved?.tools_missing ?? [],
+        overall_verdict: Boolean(saved?.tools_verified),
+      });
+    }
+  }, [hasSavedTools]);
 
   const proSkillsQuery = useQuery({
     queryKey: ['pro-skills-toolkit', profile?.id],
@@ -101,10 +117,11 @@ export default function Tools() {
         data: {
           tools_verified: verification?.overall_verdict ?? false,
           tools_missing: verification?.missing_tools ?? expectedTools,
-          onboarding_step: 'trust',
+          onboarding_step: advanceOnboarding(proDetailsQuery.data?.onboarding_step, 'tools'),
         },
       });
-      router.replace('/(pro)/onboarding/trust');
+      if (isEdit) router.back();
+      else router.replace('/(pro)/onboarding/trust');
     } catch (err) {
       console.error('Could not save toolkit step', err);
       Alert.alert('Could not save', 'Please check your connection and try again.');
@@ -116,17 +133,18 @@ export default function Tools() {
   return (
     <OnboardingScaffold
       stepKey="tools"
+      isEdit={isEdit}
       eyebrow="YOUR TOOLKIT"
       title="Show us your tools"
       subtitle="A photo of your toolkit helps customers trust you and lets us match you to jobs you're equipped for."
       footer={
-        <Button onPress={handleContinue} loading={busy} disabled={busy || !toolkitUri}>Continue</Button>
+        <Button onPress={handleContinue} loading={busy} disabled={busy || (!toolkitUri && !hasSavedTools)}>Continue</Button>
       }
     >
       <OnboardingCard>
         <Text style={{ color: colors.text.muted, fontSize: 12 }}>Expected tools: {expectedTools.join(', ')}</Text>
         <Button variant="secondary" loading={busy} disabled={busy} onPress={() => captureToolkit('camera')}>
-          {toolkitUri ? 'Retake toolkit photo' : 'Photograph toolkit'}
+          {toolkitUri || hasSavedTools ? 'Retake toolkit photo' : 'Photograph toolkit'}
         </Button>
         <Button variant="ghost" disabled={busy} onPress={() => captureToolkit('library')}>Choose from gallery</Button>
         {toolkitUri ? <Image source={{ uri: toolkitUri }} style={{ height: 180, borderRadius: 12, marginTop: 4 }} resizeMode="cover" /> : null}
