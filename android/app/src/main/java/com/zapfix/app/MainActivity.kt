@@ -1,4 +1,4 @@
-package com.Sumedh.zapfix
+package com.zapfix.app
 
 import android.os.Build
 import android.os.Bundle
@@ -24,6 +24,21 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "main"
+
+  /**
+   * Guard against a known RN 0.85 / expo-modules-core mismatch where
+   * [ReactActivityDelegate.onUserLeaveHint] runs against a null `mReactDelegate`
+   * (the Expo wrapper does not override it), crashing with an NPE whenever the
+   * user leaves the app (Home button). `onUserLeaveHint` only drives Picture-in-
+   * Picture, which we don't use, so swallowing it is safe.
+   */
+  override fun onUserLeaveHint() {
+    try {
+      super.onUserLeaveHint()
+    } catch (e: NullPointerException) {
+      // no-op: see note above
+    }
+  }
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

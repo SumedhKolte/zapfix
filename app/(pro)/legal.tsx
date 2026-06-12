@@ -6,14 +6,19 @@ import { useRouter } from 'expo-router';
 
 import { useTheme } from '@/hooks/useTheme';
 
-function LegalCard({ title, body, footer }: { title: string; body: string; footer?: string }) {
+function LegalCard({ title, body, footer, onPress, linkText }: { title: string; body: string; footer?: string; onPress?: () => void; linkText?: string }) {
   const { colors: Colors } = useTheme();
+  const Container: any = onPress ? Pressable : View;
   return (
-    <View style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
-      <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.text.primary }}>{title}</Text>
+    <Container onPress={onPress} style={{ backgroundColor: Colors.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: Colors.border }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.text.primary }}>{title}</Text>
+        {onPress ? <Ionicons name="chevron-forward" size={18} color={Colors.midGray} /> : null}
+      </View>
       <Text style={{ fontSize: 12, color: Colors.text.secondary, marginTop: 8, lineHeight: 18 }}>{body}</Text>
+      {linkText ? <Text style={{ fontSize: 12, color: Colors.amber.dark, marginTop: 8, fontWeight: '700' }}>{linkText}</Text> : null}
       {footer ? <Text style={{ fontSize: 12, color: Colors.midGray, marginTop: 8 }}>{footer}</Text> : null}
-    </View>
+    </Container>
   );
 }
 
@@ -42,16 +47,18 @@ export default function ProLegal() {
           <LegalCard
             title="Privacy Policy"
             body="We collect job-related location, KYC, and earnings data needed to operate the platform. We never sell your personal information."
-            footer="For full details, contact legal@zapfix.in."
+            linkText="Read the full Privacy Policy"
+            onPress={() => router.push('/(pro)/privacy-policy')}
           />
           <LegalCard
             title="Payment & Commission"
             body="Pros keep ~75% of each completed job. Payouts are settled via Razorpay to your verified bank account on the next business day after job completion."
           />
           <LegalCard
-            title="Terms of Service"
+            title="Terms & Conditions"
             body="Maintain a professional standard, arrive on time for scheduled visits, and complete jobs as accepted. Repeated declines or no-shows may affect your standing."
-            footer="For full terms, contact support@zapfix.in."
+            linkText="Read the full Terms & Conditions"
+            onPress={() => router.push('/(pro)/terms-conditions')}
           />
         </View>
       </ScrollView>

@@ -28,7 +28,7 @@ module.exports = ({ config }) => ({
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'com.Sumedh.zapfix',
+    bundleIdentifier: 'com.zapfix.app',
     entitlements: {
       'aps-environment': isProd ? 'production' : 'development'
     },
@@ -47,7 +47,7 @@ module.exports = ({ config }) => ({
     }
   },
   android: {
-    package: 'com.Sumedh.zapfix',
+    package: 'com.zapfix.app',
     googleServicesFile: './app/google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',

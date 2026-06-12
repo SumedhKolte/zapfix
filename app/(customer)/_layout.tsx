@@ -228,6 +228,8 @@ export default function CustomerLayout() {
       <Tabs.Screen name="appearance" options={{ href: null }} />
       <Tabs.Screen name="language" options={{ href: null }} />
       <Tabs.Screen name="legal" options={{ href: null }} />
+      <Tabs.Screen name="privacy-policy" options={{ href: null }} />
+      <Tabs.Screen name="terms-conditions" options={{ href: null }} />
       <Tabs.Screen name="receipt/[id]" options={{ href: null }} />
       <Tabs.Screen name="receipts" options={{ href: null }} />
       <Tabs.Screen name="category/[slug]" options={{ href: null }} />

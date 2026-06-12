@@ -205,6 +205,8 @@ export default function ProLayout() {
       <Tabs.Screen name="appearance" options={{ href: null }} />
       <Tabs.Screen name="language" options={{ href: null }} />
       <Tabs.Screen name="legal" options={{ href: null }} />
+      <Tabs.Screen name="privacy-policy" options={{ href: null }} />
+      <Tabs.Screen name="terms-conditions" options={{ href: null }} />
       <Tabs.Screen name="login-security" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
     </Tabs>

@@ -38,7 +38,8 @@ export default function Legal() {
         </LinearGradient>
 
         <View style={{ paddingHorizontal: 20, marginTop: -10, gap: 16 }}>
-          <View
+          <Pressable
+            onPress={() => router.push('/(customer)/privacy-policy')}
             style={{
               backgroundColor: Theme.creamCard,
               borderRadius: 18,
@@ -47,19 +48,23 @@ export default function Legal() {
               borderColor: Theme.border,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>
-              Privacy Policy
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>
+                Privacy Policy
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={Theme.textLight} />
+            </View>
             <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 8, lineHeight: 18 }}>
               Zapfix collects only the data needed to deliver service requests, provide support,
               and improve reliability. We never sell your personal information.
             </Text>
-            <Text style={{ fontSize: 12, color: Theme.textLight, marginTop: 8 }}>
-              For full details, contact legal@zapfix.in.
+            <Text style={{ fontSize: 12, color: Theme.amber, marginTop: 8, fontWeight: '700' }}>
+              Read the full Privacy Policy
             </Text>
-          </View>
+          </Pressable>
 
-          <View
+          <Pressable
+            onPress={() => router.push('/(customer)/terms-conditions')}
             style={{
               backgroundColor: Theme.creamCard,
               borderRadius: 18,
@@ -68,17 +73,20 @@ export default function Legal() {
               borderColor: Theme.border,
             }}
           >
-            <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>
-              Terms of Service
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: Theme.textDark }}>
+                Terms & Conditions
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={Theme.textLight} />
+            </View>
             <Text style={{ fontSize: 12, color: Theme.textMid, marginTop: 8, lineHeight: 18 }}>
               By using Zapfix, you agree to provide accurate information and to follow service
               scheduling guidelines. Service availability may vary by region.
             </Text>
-            <Text style={{ fontSize: 12, color: Theme.textLight, marginTop: 8 }}>
-              For full terms, contact support@zapfix.in.
+            <Text style={{ fontSize: 12, color: Theme.amber, marginTop: 8, fontWeight: '700' }}>
+              Read the full Terms & Conditions
             </Text>
-          </View>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
