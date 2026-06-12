@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase';
 import type { Tables } from '@/types/database';
 import type { ProOnboardingStep } from './mutations';
 
+export type ProVerificationStatus = 'pending' | 'verified' | 'rejected';
+
 export type ProDetails = Tables<'pro_details'> & {
   onboarding_step?: ProOnboardingStep | null;
   // New onboarding columns (added in migration 20260608120000) — declared here
@@ -9,6 +11,9 @@ export type ProDetails = Tables<'pro_details'> & {
   selfie_match_score?: number | null;
   background_status?: 'pending' | 'clear' | 'review' | null;
   trust_score?: number | null;
+  // Platform review decision, independent of onboarding_step (migration
+  // 20260612120000). Absent → treat as 'pending'.
+  verification_status?: ProVerificationStatus | null;
 };
 
 export const getProfile = async (userId: string) => {

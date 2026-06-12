@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Speech from 'expo-speech';
@@ -17,7 +17,7 @@ import { selectInterviewQuestions, type MCQQuestion } from '@/lib/interviewQuest
 import { gradeInterview } from '@/lib/gemini';
 import { parseInterview } from '@/utils/ai/parseInterview';
 import type { InterviewResponse } from '@/utils/ai/validators';
-import { TOTAL_ONBOARDING_STEPS, onboardingStepNumber } from '@/components/pro/OnboardingChrome';
+import { TOTAL_ONBOARDING_STEPS, onboardingStepNumber, advanceOnboarding, useOnboardingBack } from '@/components/pro/OnboardingChrome';
 
 type Answer = { question: MCQQuestion; selectedOptionId: string | null; note: string };
 
@@ -31,9 +31,11 @@ const speakQuestion = (q: MCQQuestion) => {
 
 export default function Assessment() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
   const { colors } = useTheme();
   const { profile } = useAuth();
-  const { updateProDetails } = useProfile(profile?.id ?? '');
+  const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
 
   const proSkillsQuery = useQuery({
     queryKey: ['pro-skills', profile?.id],
@@ -65,7 +67,12 @@ export default function Assessment() {
   const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [retaking, setRetaking] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // A previously saved score lets us show a summary on return instead of forcing
+  // a re-test — the pro can keep it (Continue) or retake to update it.
+  const savedScore = proDetailsQuery.data?.ai_skill_score ?? null;
 
   useEffect(() => {
     if (proSkillsQuery.isLoading) return;
@@ -185,7 +192,7 @@ export default function Assessment() {
             graded_at: new Date().toISOString(),
           },
           interview_locked_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-          onboarding_step: 'background',
+          onboarding_step: advanceOnboarding(proDetailsQuery.data?.onboarding_step, 'assessment'),
         },
       });
     } catch (err) {
@@ -196,7 +203,12 @@ export default function Assessment() {
     }
   };
 
-  const handleContinue = () => router.replace('/(pro)/onboarding/background');
+  const handleContinue = () =>
+    isEdit ? router.back() : router.replace('/(pro)/onboarding/background');
+
+  // Back / Previous steps to the prior onboarding step (Category) so the pro can
+  // review earlier answers; in edit mode it returns to the details view.
+  const { goBack } = useOnboardingBack('assessment', isEdit);
 
   const handleRetake = () => {
     const picked = selectInterviewQuestions(trades, 5);
@@ -206,6 +218,36 @@ export default function Assessment() {
     setScore(null);
     setFeedback('');
   };
+
+  // Returning to an already-graded step: show the saved score with the choice to
+  // keep it or retake — no need to sit the test again.
+  if (savedScore != null && score === null && !retaking) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+        <LinearGradient colors={[colors.navy.primary, colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 36, alignItems: 'center' }}>
+          <Pressable onPress={goBack} style={{ position: 'absolute', top: 16, left: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+            <Ionicons name="arrow-back" size={20} color={colors.white} />
+          </Pressable>
+          <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 12 }}>
+            SKILL ASSESSMENT · STEP {onboardingStepNumber('assessment')} OF {TOTAL_ONBOARDING_STEPS}
+          </Text>
+          <View style={{ width: 110, height: 110, borderRadius: 55, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', marginTop: 18 }}>
+            <Text style={{ color: colors.white, fontSize: 40, fontWeight: '800' }}>{savedScore}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700' }}>/ 10</Text>
+          </View>
+          <Text style={{ color: colors.white, fontSize: 20, fontWeight: '800', marginTop: 16 }}>Assessment complete</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13, marginTop: 6, textAlign: 'center', maxWidth: 280 }}>
+            Your saved skill score is on file. Keep it, or retake the test to update it.
+          </Text>
+        </LinearGradient>
+
+        <View style={{ paddingHorizontal: 20, paddingTop: 24, gap: 12 }}>
+          <Button onPress={handleContinue}>{isEdit ? 'Save & return' : 'Continue'}</Button>
+          <Button variant="secondary" onPress={() => { setRetaking(true); handleRetake(); }}>Retake assessment</Button>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (proSkillsQuery.isLoading || questions.length === 0) {
     return (
@@ -292,7 +334,7 @@ export default function Assessment() {
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <LinearGradient colors={[colors.navy.primary, colors.navy.light]} style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 28 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-            <Pressable onPress={() => router.back()} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+            <Pressable onPress={goBack} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="arrow-back" size={20} color={colors.white} />
             </Pressable>
             <View style={{ flex: 1 }}>

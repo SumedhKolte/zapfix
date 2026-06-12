@@ -118,6 +118,11 @@ export default function ProLayout() {
   const { theme: Theme } = useTheme();
   return (
     <Tabs
+      // The settings / verification / onboarding screens are href:null tab
+      // routes reached via push from the Profile tab. With the default
+      // 'firstRoute' back behavior their back arrow snapped to Dashboard; tab
+      // history sends the user back to wherever they came from (Profile).
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Theme.navy,
@@ -207,6 +212,7 @@ export default function ProLayout() {
       <Tabs.Screen name="legal" options={{ href: null }} />
       <Tabs.Screen name="login-security" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="verification-details" options={{ href: null }} />
     </Tabs>
   );
 }

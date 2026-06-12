@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/Button';
-import { OnboardingCard, OnboardingScaffold } from '@/components/pro/OnboardingChrome';
+import { OnboardingCard, OnboardingScaffold, advanceOnboarding } from '@/components/pro/OnboardingChrome';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -17,13 +17,24 @@ const CHECKS = [
 
 export default function Background() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
   const { colors } = useTheme();
   const { profile } = useAuth();
-  const { updateProDetails } = useProfile(profile?.id ?? '');
+  const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
 
   const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState<'idle' | 'running' | 'clear'>('idle');
   const [submitting, setSubmitting] = useState(false);
+
+  // Restore a previously cleared screening so the step shows verified on return.
+  const saved = proDetailsQuery.data;
+  useEffect(() => {
+    if (saved?.background_status === 'clear') {
+      setStatus('clear');
+      setConsent(true);
+    }
+  }, [saved?.background_status]);
 
   const runCheck = async () => {
     if (!consent) {
@@ -42,9 +53,13 @@ export default function Background() {
     try {
       await updateProDetails({
         id: profile.id,
-        data: { background_status: 'clear', onboarding_step: 'bank' },
+        data: {
+          background_status: 'clear',
+          onboarding_step: advanceOnboarding(proDetailsQuery.data?.onboarding_step, 'background'),
+        },
       });
-      router.replace('/(pro)/onboarding/bank');
+      if (isEdit) router.back();
+      else router.replace('/(pro)/onboarding/bank');
     } catch {
       Alert.alert('Error', 'Could not save your verification. Please try again.');
     } finally {
@@ -55,6 +70,7 @@ export default function Background() {
   return (
     <OnboardingScaffold
       stepKey="background"
+      isEdit={isEdit}
       eyebrow="TRUST & SAFETY"
       title="Background verification"
       subtitle="Customers invite you into their homes — a clean background check keeps everyone safe and boosts your trust score."

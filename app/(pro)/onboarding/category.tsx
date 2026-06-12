@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/Button';
-import { OnboardingScaffold } from '@/components/pro/OnboardingChrome';
+import { OnboardingScaffold, advanceOnboarding } from '@/components/pro/OnboardingChrome';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { getCatalogSkills } from '@/services/catalog';
@@ -33,9 +33,11 @@ const tradeIcon = (trade: string): any => TRADE_ICONS[trade.toLowerCase().trim()
 
 export default function Category() {
   const router = useRouter();
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const isEdit = edit === '1';
   const { colors } = useTheme();
   const { profile } = useAuth();
-  const { updateProDetails } = useProfile(profile?.id ?? '');
+  const { proDetailsQuery, updateProDetails } = useProfile(profile?.id ?? '');
   const skillsQuery = useQuery({ queryKey: ['catalog-skills'], queryFn: getCatalogSkills });
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -78,8 +80,12 @@ export default function Category() {
     setSaving(true);
     try {
       await createProSkills(selectedSkills.map((skillId) => ({ pro_id: profile.id, skill_id: skillId })));
-      await updateProDetails({ id: profile.id, data: { onboarding_step: 'assessment' } });
-      router.replace('/(pro)/onboarding/assessment');
+      await updateProDetails({
+        id: profile.id,
+        data: { onboarding_step: advanceOnboarding(proDetailsQuery.data?.onboarding_step, 'category') },
+      });
+      if (isEdit) router.back();
+      else router.replace('/(pro)/onboarding/assessment');
     } catch (err) {
       console.error('Could not save categories', err);
       Alert.alert('Could not save', 'Please check your connection and try again.');
@@ -94,6 +100,7 @@ export default function Category() {
   return (
     <OnboardingScaffold
       stepKey="category"
+      isEdit={isEdit}
       eyebrow="YOUR CATEGORIES"
       title="What can you fix?"
       subtitle="Pick everything you can confidently take on — we'll match you with jobs that fit. You can update this any time."
