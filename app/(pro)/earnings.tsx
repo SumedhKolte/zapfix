@@ -1,14 +1,22 @@
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import { getEarnings } from '@/services/earnings';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getEarnings, requestEarningsWithdrawal } from '@/services/earnings';
 import { EarningsSummary } from '@/components/pro/EarningsSummary';
 import { formatCurrency } from '@/utils/formatCurrency';
+
+const PLATFORM_FEE_PCT = 30; // platform commission; pro keeps the remaining 70%
+
+function payoutLabel(payoutStatus?: string | null, paidAt?: string | null) {
+  if (paidAt || payoutStatus === 'paid') return 'Paid';
+  if (payoutStatus === 'requested') return 'Requested';
+  return 'Available';
+}
 
 function formatPaidAt(value?: string | null) {
   if (!value) return 'Pending payout';
@@ -53,7 +61,7 @@ function SummaryTile({ icon, label, value, accent }: any) {
   );
 }
 
-function EarningCard({ jobId, amount, grossAmount, commission, paidAt }: any) {
+function EarningCard({ jobId, amount, grossAmount, commission, paidAt, payoutStatus }: any) {
   const { colors: Colors } = useTheme();
   return (
     <View
@@ -107,12 +115,12 @@ function EarningCard({ jobId, amount, grossAmount, commission, paidAt }: any) {
           <Text style={{ color: Colors.darkGray, fontSize: 13, fontWeight: '800', marginTop: 2 }}>{formatCurrency(grossAmount ?? amount)}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: Colors.midGray, fontSize: 11, fontWeight: '700' }}>Commission</Text>
-          <Text style={{ color: Colors.darkGray, fontSize: 13, fontWeight: '800', marginTop: 2 }}>{formatCurrency(commission ?? 0)}</Text>
+          <Text style={{ color: Colors.midGray, fontSize: 11, fontWeight: '700' }}>Platform fee</Text>
+          <Text style={{ color: Colors.darkGray, fontSize: 13, fontWeight: '800', marginTop: 2 }}>−{formatCurrency(commission ?? 0)}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: Colors.midGray, fontSize: 11, fontWeight: '700' }}>Status</Text>
-          <Text style={{ color: Colors.success, fontSize: 13, fontWeight: '800', marginTop: 2 }}>{paidAt ? 'Paid' : 'Queued'}</Text>
+          <Text style={{ color: Colors.success, fontSize: 13, fontWeight: '800', marginTop: 2 }}>{payoutLabel(payoutStatus, paidAt)}</Text>
         </View>
       </View>
     </View>
@@ -122,6 +130,7 @@ function EarningCard({ jobId, amount, grossAmount, commission, paidAt }: any) {
 export default function Earnings() {
   const { colors: Colors } = useTheme();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const earningsQuery = useQuery({
     queryKey: ['earnings', profile?.id ?? ''],
     queryFn: () => getEarnings(profile?.id ?? ''),
@@ -133,6 +142,40 @@ export default function Earnings() {
   const totalCommission = earningsQuery.data?.reduce((sum, item) => sum + item.commission_amount, 0) ?? 0;
   const jobs = earningsQuery.data?.length ?? 0;
   const average = jobs > 0 ? total / jobs : 0;
+
+  // Only 'pending' (un-requested, unpaid) net earnings can be withdrawn.
+  const withdrawable = earningsQuery.data?.reduce(
+    (sum, item) => sum + ((item as any).payout_status === 'pending' && !item.paid_at ? item.net_payout : 0),
+    0
+  ) ?? 0;
+
+  const withdrawMutation = useMutation({
+    mutationFn: requestEarningsWithdrawal,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['earnings', profile?.id ?? ''] });
+      Alert.alert(
+        'Withdrawal requested',
+        result.requestedCount > 0
+          ? `${formatCurrency(result.requestedAmount)} across ${result.requestedCount} ${result.requestedCount === 1 ? 'job' : 'jobs'} will be transferred to your registered bank account.`
+          : 'There are no available earnings to withdraw right now.'
+      );
+    },
+    onError: (err) => {
+      Alert.alert('Could not request withdrawal', err instanceof Error ? err.message : 'Please try again.');
+    },
+  });
+
+  const onWithdraw = () => {
+    if (withdrawable <= 0 || withdrawMutation.isPending) return;
+    Alert.alert(
+      'Request withdrawal?',
+      `${formatCurrency(withdrawable)} will be queued for transfer to your registered bank account.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Withdraw', onPress: () => withdrawMutation.mutate() },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: Colors.offWhite }}>
@@ -159,8 +202,44 @@ export default function Earnings() {
             {formatCurrency(total)}
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 6 }}>
-            {jobs} completed {jobs === 1 ? 'job' : 'jobs'}
+            {jobs} completed {jobs === 1 ? 'job' : 'jobs'} · you keep {100 - PLATFORM_FEE_PCT}% of every job
           </Text>
+
+          <Pressable
+            onPress={onWithdraw}
+            disabled={withdrawable <= 0 || withdrawMutation.isPending}
+            style={{
+              marginTop: 18,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              backgroundColor: withdrawable > 0 ? Colors.amber.primary : 'rgba(255,255,255,0.16)',
+              borderRadius: 14,
+              paddingVertical: 14,
+            }}
+          >
+            {withdrawMutation.isPending ? (
+              <ActivityIndicator color={withdrawable > 0 ? Colors.navy.primary : Colors.white} />
+            ) : (
+              <>
+                <Ionicons
+                  name="cash-outline"
+                  size={18}
+                  color={withdrawable > 0 ? Colors.navy.primary : 'rgba(255,255,255,0.7)'}
+                />
+                <Text
+                  style={{
+                    color: withdrawable > 0 ? Colors.navy.primary : 'rgba(255,255,255,0.7)',
+                    fontWeight: '900',
+                    fontSize: 14,
+                  }}
+                >
+                  {withdrawable > 0 ? `Withdraw ${formatCurrency(withdrawable)}` : 'No funds to withdraw'}
+                </Text>
+              </>
+            )}
+          </Pressable>
         </LinearGradient>
 
         <View style={{ paddingHorizontal: 20, gap: 16, paddingTop: 20 }}>
@@ -172,6 +251,25 @@ export default function Earnings() {
 
           {/* Summary Card */}
           <EarningsSummary total={total} jobs={earningsQuery.data?.length ?? 0} label="All time" />
+
+          {/* Split transparency — builds pro trust in how payouts are computed */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              backgroundColor: Colors.blue.light,
+              borderRadius: 14,
+              padding: 14,
+            }}
+          >
+            <Ionicons name="shield-checkmark" size={18} color={Colors.blue.primary} />
+            <Text style={{ flex: 1, fontSize: 12, color: Colors.text.primary, lineHeight: 17 }}>
+              You keep <Text style={{ fontWeight: '900' }}>{100 - PLATFORM_FEE_PCT}%</Text> of every completed job. A{' '}
+              <Text style={{ fontWeight: '900' }}>{PLATFORM_FEE_PCT}%</Text> platform fee covers payments, support and
+              insurance — deducted automatically, never charged separately.
+            </Text>
+          </View>
 
           {/* Earnings List */}
           {earningsQuery.data && earningsQuery.data.length > 0 ? (
@@ -187,6 +285,7 @@ export default function Earnings() {
                   grossAmount={earning.gross_amount}
                   commission={earning.commission_amount}
                   paidAt={earning.paid_at}
+                  payoutStatus={(earning as any).payout_status}
                 />
               ))}
             </View>

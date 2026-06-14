@@ -4,6 +4,7 @@ import { Animated, Pressable, View, Text } from 'react-native';
 import { useRef, useEffect } from 'react';
 
 import { ActiveJobTracker } from '@/components/customer/ActiveJobTracker';
+import { RescheduleProposalModal } from '@/components/customer/RescheduleProposalModal';
 import { useTheme } from '@/hooks/useTheme';
 
 /* ── Animated icon for regular tabs ── */
@@ -170,10 +171,10 @@ export default function CustomerLayout() {
       <Tabs.Screen
         name="jobs"
         options={{
-          title: 'Jobs',
+          title: 'Zaps',
           tabBarIcon: ({ focused }) => (
             <TabBarIcon
-              name={focused ? 'briefcase' : 'briefcase-outline'}
+              name={focused ? 'flash' : 'flash-outline'}
               focused={focused}
             />
           ),
@@ -236,6 +237,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="quick-book" options={{ href: null }} />
     </Tabs>
     <ActiveJobTracker />
+    <RescheduleProposalModal />
     </View>
   );
 }

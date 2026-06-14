@@ -1,21 +1,25 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.2';
 
-// Verifies a Cashfree order's payment status server-side using the secret
-// key. The client cannot be trusted to self-report payment success — the SDK
-// success callback only tells us the user finished the flow, not that the
-// payment actually settled.
+// Verifies a Cashfree order's payment status server-side.
+// Uses the same credential/env resolution as cashfree-create-order so the
+// verify call always hits the same API endpoint the order was created on.
+//
+// See cashfree-create-order for full credential setup docs.
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseUrl     = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-const cfAppId = Deno.env.get('CASHFREE_APP_ID') ?? '';
+
+const cfAppId  = Deno.env.get('CASHFREE_APP_ID') ?? '';
 const cfSecret = Deno.env.get('CASHFREE_SECRET_KEY') ?? '';
-const cfEnv = (Deno.env.get('CASHFREE_ENV') ?? 'sandbox').toLowerCase();
 
-const CF_BASE = cfEnv === 'production'
-  ? 'https://api.cashfree.com/pg'
-  : 'https://sandbox.cashfree.com/pg';
+const cfTestAppId  = Deno.env.get('CASHFREE_TEST_APP_ID')  ?? '';
+const cfTestSecret = Deno.env.get('CASHFREE_TEST_SECRET_KEY') ?? '';
 
+const cfEnvFallback = (Deno.env.get('CASHFREE_ENV') ?? 'sandbox').toLowerCase();
+
+const CF_PROD_BASE = 'https://api.cashfree.com/pg';
+const CF_TEST_BASE = 'https://sandbox.cashfree.com/pg';
 const CF_API_VERSION = '2023-08-01';
 
 const CORS_HEADERS = {
@@ -29,7 +33,7 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') return jsonError('Method not allowed', 405);
 
   if (!cfAppId || !cfSecret) {
-    return jsonError('Cashfree secrets not configured on the server.', 500);
+    return jsonError('Cashfree credentials not configured.', 500);
   }
 
   const authHeader = req.headers.get('Authorization');
@@ -41,7 +45,7 @@ serve(async (req: Request) => {
   const { data: userData, error: authError } = await supabase.auth.getUser();
   if (authError || !userData?.user) return jsonError('Unauthorized', 401);
 
-  let body: { order_id?: string };
+  let body: { order_id?: string; env?: string };
   try {
     body = await req.json();
   } catch {
@@ -49,14 +53,38 @@ serve(async (req: Request) => {
   }
   if (!body.order_id) return jsonError('order_id required', 400);
 
+  // Mirror the same credential resolution as create-order so we always
+  // verify against the same Cashfree environment the order was created in.
+  const wantSandbox = body.env !== 'production';
+  const hasTestCreds = Boolean(cfTestAppId && cfTestSecret);
+
+  let resolvedAppId: string;
+  let resolvedSecret: string;
+  let resolvedBase: string;
+
+  if (wantSandbox && hasTestCreds) {
+    resolvedAppId  = cfTestAppId;
+    resolvedSecret = cfTestSecret;
+    resolvedBase   = CF_TEST_BASE;
+  } else if (!wantSandbox) {
+    resolvedAppId  = cfAppId;
+    resolvedSecret = cfSecret;
+    resolvedBase   = CF_PROD_BASE;
+  } else {
+    // Fallback: use main creds + CASHFREE_ENV
+    resolvedAppId  = cfAppId;
+    resolvedSecret = cfSecret;
+    resolvedBase   = cfEnvFallback === 'production' ? CF_PROD_BASE : CF_TEST_BASE;
+  }
+
   let cfRes: Response;
   try {
-    cfRes = await fetch(`${CF_BASE}/orders/${encodeURIComponent(body.order_id)}/payments`, {
+    cfRes = await fetch(`${resolvedBase}/orders/${encodeURIComponent(body.order_id)}/payments`, {
       method: 'GET',
       headers: {
-        'x-api-version': CF_API_VERSION,
-        'x-client-id': cfAppId,
-        'x-client-secret': cfSecret,
+        'x-api-version':   CF_API_VERSION,
+        'x-client-id':     resolvedAppId,
+        'x-client-secret': resolvedSecret,
       },
     });
   } catch (e) {
@@ -67,7 +95,7 @@ serve(async (req: Request) => {
   if (!cfRes.ok) {
     const errText = await cfRes.text();
     console.error(`Cashfree verify-order ${cfRes.status}:`, errText);
-    return jsonError(`Cashfree returned ${cfRes.status}: ${errText}`, 502);
+    return jsonError(`Cashfree error (${cfRes.status}): ${errText}`, 502);
   }
 
   const payments = await cfRes.json() as Array<{
@@ -78,17 +106,13 @@ serve(async (req: Request) => {
     payment_completion_time?: string;
   }>;
 
-  // Cashfree returns an array of payment attempts. Find the first SUCCESS.
   const success = Array.isArray(payments)
     ? payments.find((p) => p.payment_status === 'SUCCESS')
     : null;
 
   if (!success) {
     return new Response(
-      JSON.stringify({
-        verified: false,
-        status: payments?.[0]?.payment_status ?? 'NOT_ATTEMPTED',
-      }),
+      JSON.stringify({ verified: false, status: payments?.[0]?.payment_status ?? 'NOT_ATTEMPTED' }),
       { headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
     );
   }
@@ -96,10 +120,10 @@ serve(async (req: Request) => {
   return new Response(
     JSON.stringify({
       verified: true,
-      cf_payment_id: String(success.cf_payment_id ?? ''),
-      payment_amount: success.payment_amount,
-      payment_currency: success.payment_currency,
-      payment_completion_time: success.payment_completion_time,
+      cf_payment_id:            String(success.cf_payment_id ?? ''),
+      payment_amount:           success.payment_amount,
+      payment_currency:         success.payment_currency,
+      payment_completion_time:  success.payment_completion_time,
     }),
     { headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
   );

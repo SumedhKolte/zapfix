@@ -39,12 +39,12 @@ function EmptyJobState({ tab, onPress }: { tab: string; onPress: () => void }) {
         />
       </View>
       <Text style={{ fontSize: 17, fontWeight: '700', color: Theme.textDark, marginBottom: 8 }}>
-        {tab === 'active' ? 'No active jobs' : 'No completed jobs'}
+        {tab === 'active' ? 'No active Zaps' : 'No completed Zaps'}
       </Text>
       <Text style={{ fontSize: 14, color: Theme.textMid, textAlign: 'center', maxWidth: 220, lineHeight: 20 }}>
         {tab === 'active'
           ? 'Describe a problem to get matched with a pro'
-          : 'Your completed jobs will appear here'}
+          : 'Your completed Zaps will appear here'}
       </Text>
       {tab === 'active' ? (
         <Pressable
@@ -107,7 +107,7 @@ export default function Jobs() {
           style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 28 }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={{ fontSize: 24, fontWeight: '800', color: Theme.white }}>My Jobs</Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: Theme.white }}>My Zaps</Text>
             <View style={{
               backgroundColor: Theme.amber,
               borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
@@ -166,7 +166,7 @@ export default function Jobs() {
             contentContainerStyle={{ paddingBottom: 20 }}
             renderItem={({ item }) => (
               <JobHistoryItem
-                faultName={item.ai_diagnosis ?? 'Job'}
+                faultName={item.ai_diagnosis ?? 'Zap'}
                 proName={item.pro_id}
                 date={item.created_at ?? ''}
                 status={item.status ?? 'triage'}

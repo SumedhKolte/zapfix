@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
@@ -65,8 +65,14 @@ const iconFor = (status: JobStatus) => {
 
 export const ActiveJobTracker = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { profile } = useAuth();
   const { jobsQuery } = useJob({ customerId: profile?.id });
+
+  // Hide the floating tracker on the job-detail screen: it's redundant there
+  // (the screen already shows live status) and it would float over that
+  // screen's Cancel button, blocking the tap.
+  const onJobDetail = pathname?.startsWith('/job') || pathname?.includes('/job/');
 
   const activeJob = useMemo(() => {
     const list = jobsQuery.data ?? [];
@@ -98,7 +104,7 @@ export const ActiveJobTracker = () => {
     return () => loop.stop();
   }, [activeJob, shimmer]);
 
-  if (!activeJob) return null;
+  if (!activeJob || onJobDetail) return null;
 
   const status = activeJob.status as JobStatus;
   const shimmerTranslate = shimmer.interpolate({
@@ -113,7 +119,10 @@ export const ActiveJobTracker = () => {
         position: 'absolute',
         left: 12,
         right: 12,
-        bottom: Platform.OS === 'ios' ? 96 : 88,
+        // Sit clearly ABOVE the 82px tab bar and its raised centre "Diagnose"
+        // button (which pokes ~10px above the bar). Anything lower overlaps and
+        // makes the bar collide with the Diagnose button.
+        bottom: Platform.OS === 'ios' ? 116 : 108,
         transform: [{ translateY }],
         zIndex: 50,
         elevation: 50,

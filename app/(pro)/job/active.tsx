@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { createNotification } from '@/services/notifications';
+import { useToast } from '@/components/ui/Toast';
 
 const CANCEL_REASONS = [
   'Emergency / health issue',
@@ -40,6 +41,7 @@ export default function ActiveJob() {
   const { colors: Colors } = useTheme();
   const router = useRouter();
   const { profile } = useAuth();
+  const toast = useToast();
   const { jobsQuery, proStartTransit, proMarkArrived, updateJobStatus, proCancelAcceptedJob } = useJob({ proId: profile?.id });
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<string>(CANCEL_REASONS[0]);
@@ -65,9 +67,10 @@ export default function ActiveJob() {
           deepLink: `/(customer)/job/${active.id}`,
         });
       }
+      toast.success("You're on the way", 'The customer has been notified.');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not update', 'Please try again.');
+      toast.error('Could not update', 'Please try again.');
     }
   };
 
@@ -84,9 +87,10 @@ export default function ActiveJob() {
           deepLink: `/(customer)/job/${active.id}`,
         });
       }
+      toast.success('Marked as arrived', 'The customer knows you have reached.');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not update', 'Please try again.');
+      toast.error('Could not update', 'Please try again.');
     }
   };
 
@@ -123,11 +127,11 @@ export default function ActiveJob() {
       }
       await proCancelAcceptedJob({ jobId: active.id, proId: profile.id, reason });
       setCancelOpen(false);
-      Alert.alert('Cancelled', 'The customer has been notified and the job is back in the queue for another pro.');
+      toast.success('Job released', 'The customer was notified and the job is back in the queue.');
       router.replace('/(pro)/dashboard');
     } catch (err) {
       console.error('proCancelAcceptedJob failed', err);
-      Alert.alert('Could not cancel', err instanceof Error ? err.message : 'Please try again.');
+      toast.error('Could not cancel', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setCancelBusy(false);
     }
@@ -151,10 +155,11 @@ export default function ActiveJob() {
                 deepLink: `/(customer)/job/${active.id}`,
               });
             }
+            toast.success('Job completed', 'The customer will confirm and rate.');
             router.replace('/(pro)/dashboard');
           } catch (err) {
             console.error(err);
-            Alert.alert('Could not complete', 'Please try again.');
+            toast.error('Could not complete', 'Please try again.');
           }
         },
       },

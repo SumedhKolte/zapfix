@@ -18,8 +18,11 @@ export const collectPayment = async (input: CreateOrderInput): Promise<PaymentOu
   await launchCashfreeCheckout({
     paymentSessionId: order.paymentSessionId,
     orderId: order.orderId,
+    // Use the same env the server created the order in — prevents the
+    // sandbox/production mismatch that surfaces as "token is not present".
+    env: order.env,
   });
-  const verified = await verifyCashfreeOrder(order.orderId);
+  const verified = await verifyCashfreeOrder(order.orderId, order.env);
   if (!verified.verified) {
     throw new Error(`Payment not settled (status: ${verified.status}).`);
   }

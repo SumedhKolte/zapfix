@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useJob } from '@/hooks/useJob';
 import { createNotification } from '@/services/notifications';
+import { useToast } from '@/components/ui/Toast';
 import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
 
 const buildSuggestionSlots = (anchor: Date): Date[] => {
@@ -31,6 +32,7 @@ export default function ProRequestDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const toast = useToast();
   const { jobQuery, proAcceptJob, proDeclineJob, proProposeAltTime } = useJob({ jobId: id });
 
   const job = jobQuery.data;
@@ -62,11 +64,11 @@ export default function ProRequestDetail() {
           deepLink: `/(customer)/job/${job.id}`,
         });
       }
-      Alert.alert('Job accepted', 'The customer has been notified.');
+      toast.success('Job accepted', 'The customer has been notified.');
       router.replace('/(pro)/dashboard');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not accept', 'Please try again.');
+      toast.error('Could not accept', 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -92,10 +94,11 @@ export default function ProRequestDetail() {
                 deepLink: `/(customer)/job/${job.id}`,
               });
             }
+            toast.info('Job declined', 'It will go to another nearby pro.');
             router.replace('/(pro)/dashboard');
           } catch (err) {
             console.error(err);
-            Alert.alert('Could not decline', 'Please try again.');
+            toast.error('Could not decline', 'Please try again.');
           } finally {
             setBusy(null);
           }
@@ -106,7 +109,7 @@ export default function ProRequestDetail() {
 
   const handlePropose = async () => {
     if (!job?.id || !profile?.id || !proposed) {
-      Alert.alert('Pick a time', 'Please select an alternative time first.');
+      toast.error('Pick a time', 'Please select an alternative time first.');
       return;
     }
     setBusy('propose');
@@ -121,11 +124,11 @@ export default function ProRequestDetail() {
           deepLink: `/(customer)/job/${job.id}`,
         });
       }
-      Alert.alert('Counter-offer sent', 'The customer can accept or decline your time.');
+      toast.success('Counter-offer sent', 'The customer can accept or decline your time.');
       router.replace('/(pro)/dashboard');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not send', 'Please try again.');
+      toast.error('Could not send', 'Please try again.');
     } finally {
       setBusy(null);
     }

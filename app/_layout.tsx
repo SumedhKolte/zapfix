@@ -16,6 +16,7 @@ import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { getProDetails } from '@/services/profile';
 import { ThemeProvider, useTheme } from '@/hooks/useTheme';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { ToastProvider } from '@/components/ui/Toast';
 import { AppSplash } from '@/components/ui/AppSplash';
 import { isFullNameMissing } from '@/utils/profile';
 
@@ -139,9 +140,11 @@ function ThemedRoot() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
-            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-            <OfflineBanner visible={isOffline} />
-            <RootNavigation />
+            <ToastProvider>
+              <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+              <OfflineBanner visible={isOffline} />
+              <RootNavigation />
+            </ToastProvider>
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

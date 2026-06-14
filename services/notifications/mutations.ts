@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Enums, TablesInsert } from '@/types/database';
+import type { Enums, Tables } from '@/types/database';
 
 export const markNotificationRead = async (notificationId: string) => {
   const { data, error } = await supabase
@@ -83,42 +83,43 @@ export const createNotification = async ({
   jobId,
   deepLink,
 }: CreateNotificationArgs) => {
-  const payload: TablesInsert<'notifications'> = {
-    user_id: userId,
-    type,
-    title,
-    body,
-    job_id: jobId ?? null,
-    deep_link: deepLink ?? null,
-    is_read: false,
-  };
-  const { data, error } = await supabase
-    .from('notifications')
-    .insert(payload)
-    .select('*')
-    .single();
+  // Insert via a SECURITY DEFINER RPC instead of a direct table INSERT. A user
+  // notifying ANOTHER user (customer <-> pro) can't satisfy the notifications
+  // RLS WITH CHECK from the client and fails with 42501; the RPC does the
+  // participant authorization itself and inserts with definer privileges.
+  // It also returns the recipient's push token so we can fan out a push
+  // without needing read access to the other user's profile row.
+  // Cast: the RPC is newer than the committed generated DB types. Regenerate
+  // types/database.ts (supabase gen types) to drop this cast.
+  const { data, error } = await (supabase.rpc as any)('send_job_notification', {
+    p_user_id: userId,
+    p_title: title,
+    p_body: body,
+    p_type: type,
+    p_job_id: jobId ?? null,
+    p_deep_link: deepLink ?? null,
+  });
+
   if (error) {
     // Don't throw — notifications shouldn't break user flow.
     console.warn('createNotification failed', error);
     return null;
   }
 
-  // Fan out to the recipient's device. We look up the token here rather than
-  // expecting the caller to pass it in, so every create_notification call gets
-  // push delivery without extra wiring.
-  const { data: recipient } = await supabase
-    .from('profiles')
-    .select('fcm_token')
-    .eq('id', userId)
-    .maybeSingle();
+  const result = (data ?? {}) as {
+    notification?: Tables<'notifications'>;
+    push_token?: string | null;
+  };
 
-  if (recipient?.fcm_token) {
-    await sendExpoPush(recipient.fcm_token, {
+  // Fan out to the recipient's device. The RPC returns the token so we don't
+  // depend on the caller having row-level read access to the recipient.
+  if (result.push_token) {
+    await sendExpoPush(result.push_token, {
       title,
       body,
       data: { deepLink: deepLink ?? null, jobId: jobId ?? null, type },
     });
   }
 
-  return data;
+  return result.notification ?? null;
 };

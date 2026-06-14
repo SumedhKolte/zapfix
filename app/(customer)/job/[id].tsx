@@ -16,6 +16,7 @@ import { StatusPill } from '@/components/ui/StatusPill';
 import { Button } from '@/components/ui/Button';
 import { formatCostEstimate, formatCurrency } from '@/utils/formatCurrency';
 import { createNotification } from '@/services/notifications';
+import { useToast } from '@/components/ui/Toast';
 import { subscribeToJob } from '@/services/jobs';
 import { QueryKeys } from '@/constants/queryKeys';
 import { distanceKm, normalizeGeoPoint } from '@/utils/geo';
@@ -43,6 +44,7 @@ export default function JobTracking() {
   const queryClient = useQueryClient();
   const { id }  = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const toast = useToast();
   const { jobQuery, acceptCounterOffer, declineCounterOffer, cancelJob } = useJob({ jobId: id });
   const headerAnim = useRef(new Animated.Value(0)).current;
   const [busy, setBusy] = useState<'accept' | 'decline' | 'cancel' | null>(null);
@@ -125,10 +127,10 @@ export default function JobTracking() {
           deepLink: `/(pro)/dashboard`,
         });
       }
-      Alert.alert('Confirmed', 'Your booking is set for the new time.');
+      toast.success('Confirmed', 'Your booking is set for the new time.');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not accept', 'Please try again.');
+      toast.error('Could not accept', 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -149,10 +151,10 @@ export default function JobTracking() {
         });
       }
       await declineCounterOffer({ jobId: id });
-      Alert.alert('Declined', 'We\'ll find another Pro for your original slot.');
+      toast.info('Declined', 'We\'ll find another Pro for your original slot.');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not decline', 'Please try again.');
+      toast.error('Could not decline', 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -174,12 +176,11 @@ export default function JobTracking() {
           deepLink: `/(pro)/dashboard`,
         });
       }
-      Alert.alert('Cancelled', 'Your booking has been cancelled.', [
-        { text: 'OK', onPress: () => router.replace('/(customer)/home') }
-      ]);
+      toast.success('Cancelled', 'Your booking has been cancelled.');
+      router.replace('/(customer)/home');
     } catch (err) {
       console.error(err);
-      Alert.alert('Could not cancel', 'Please try again.');
+      toast.error('Could not cancel', 'Please try again.');
     } finally {
       setBusy(null);
     }
@@ -312,7 +313,7 @@ export default function JobTracking() {
             loading={proSummaryQuery.isLoading}
             onContact={
               job.status === 'in_transit' || job.status === 'arrived' || job.status === 'working'
-                ? () => Alert.alert('Contact Pro', 'Call feature coming soon. The pro will reach out if needed.')
+                ? () => toast.info('Contact Pro', 'Call feature coming soon. The pro will reach out if needed.')
                 : undefined
             }
           />
@@ -373,7 +374,7 @@ export default function JobTracking() {
           {job?.status === 'working' ? (
             <Button
               variant="primary"
-              onPress={() => Alert.alert('Contact Pro', 'Call feature coming soon.')}
+              onPress={() => toast.info('Contact Pro', 'Call feature coming soon.')}
               leftIcon={<Ionicons name="call-outline" size={18} color={Theme.navy} />}
             >
               Contact Pro

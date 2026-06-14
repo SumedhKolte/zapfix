@@ -82,10 +82,25 @@ export const createCashfreeOrder = async (input: CreateOrderInput): Promise<Crea
       customer_name: input.customerName,
       customer_email: input.customerEmail,
       note: input.note,
+      // Tells the edge function which credential pair (sandbox vs production)
+      // to use. Sandbox orders skip the Play Store installer check, so dev
+      // builds can test end-to-end without the installer_package_not_approved error.
+      app_env: Config.cashfreeEnv,
     },
   });
 
-  if (error) throw new Error(error.message ?? 'Could not create payment order.');
+  if (error) {
+    // supabase.functions.invoke gives a generic "non-2xx" message.
+    // Extract the real error body from the edge function response.
+    let message = 'Could not create payment order.';
+    try {
+      const body = await (error as any).context?.json?.();
+      if (typeof body?.error === 'string') message = body.error;
+    } catch {
+      message = error.message ?? message;
+    }
+    throw new Error(message);
+  }
   if (!data?.payment_session_id || !data?.order_id) {
     throw new Error('Cashfree did not return a payment session.');
   }
@@ -101,11 +116,25 @@ export const createCashfreeOrder = async (input: CreateOrderInput): Promise<Crea
 // Server-side verification of a settled order. Always call this before
 // trusting the SDK's onVerify callback — the callback fires when the user
 // finishes the flow, not when money actually moves.
-export const verifyCashfreeOrder = async (orderId: string): Promise<VerifyResult> => {
+export const verifyCashfreeOrder = async (
+  orderId: string,
+  // Must match the env the order was created in so the verify call hits the
+  // correct Cashfree API endpoint (sandbox vs production are separate systems).
+  env: 'sandbox' | 'production' = Config.cashfreeEnv
+): Promise<VerifyResult> => {
   const { data, error } = await supabase.functions.invoke('cashfree-verify-order', {
-    body: { order_id: orderId },
+    body: { order_id: orderId, env },
   });
-  if (error) throw new Error(error.message ?? 'Could not verify payment.');
+  if (error) {
+    let message = 'Could not verify payment.';
+    try {
+      const body = await (error as any).context?.json?.();
+      if (typeof body?.error === 'string') message = body.error;
+    } catch {
+      message = error.message ?? message;
+    }
+    throw new Error(message);
+  }
 
   if (data?.verified) {
     return {
@@ -128,9 +157,21 @@ export const verifyCashfreeOrder = async (orderId: string): Promise<VerifyResult
 export const launchCashfreeCheckout = async (params: {
   paymentSessionId: string;
   orderId: string;
+  // The env the SERVER created this order in. Must match, otherwise the SDK
+  // validates the session token against the wrong gateway and rejects with
+  // "token is not present" (order_token_invalid). Falls back to the client
+  // config only if the server didn't say.
+  env?: 'sandbox' | 'production';
 }): Promise<{ orderId: string }> => {
   return new Promise((resolve, reject) => {
     try {
+      // A missing/empty session id produces the same opaque
+      // "token is not present" SDK error — fail early with a clear message.
+      if (!params.paymentSessionId) {
+        reject(new Error('Cashfree did not return a payment session token.'));
+        return;
+      }
+
       const cashfreeGatewayService = getCashfreeGatewayService();
       if (!cashfreeGatewayService) {
         reject(
@@ -141,10 +182,17 @@ export const launchCashfreeCheckout = async (params: {
         return;
       }
 
+      const environment =
+        params.env === 'production'
+          ? CFEnvironment.PRODUCTION
+          : params.env === 'sandbox'
+            ? CFEnvironment.SANDBOX
+            : cfEnvironment();
+
       const session = new CFSession(
         params.paymentSessionId,
         params.orderId,
-        cfEnvironment()
+        environment
       );
 
       const theme = new CFThemeBuilder()
